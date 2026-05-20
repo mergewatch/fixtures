@@ -56,6 +56,15 @@ gh pr close <N> --delete-branch
 | E2E-18 | `18a-introduce-criticals` → `18b-fix-criticals` | Two-step: criticals introduced → fix pushed → delta-aware green verdict | sequenced |
 | E2E-19 | `19-confidence-default-off` | No `XX%` confidence badges on a default install | |
 | E2E-20 | `20-description-drift` | PR description claims `localStorage` but diff uses memCache → reviewer flags drift | spot-check |
+| E2E-21 | `21-noop-suggestion` | Finding whose suggested fix already matches the code → dropped by W1 no-op guard | stochastic |
+| E2E-22 | `22-claim-aware-verify` | Truncated-diff "missing await" critical → dropped by W2 claim verification | stochastic |
+| E2E-23 | `23-convergence` | Re-review never lists same concern as ✅ Resolved + 🆕 new (W9); author triage suppresses (W3) | two-commit + triage |
+| E2E-24 | `24-triage-author-filter` | Non-author `## mergewatch triage` does NOT suppress (security boundary) | two-account |
+| E2E-25 | `25-w7-guardrail` | Unverified-only Critical → score clamps to 3/5 + COMMENT (not REQUEST_CHANGES) | stochastic |
+| E2E-26 | `26-call-site-snap` | Finding about a function snaps to call site, not definition (W8) | |
+| E2E-27 | `27-no-harness` | `AGENTS.md` declares no test suite → N "lacks coverage" findings collapse into one info note | |
+| E2E-28 | `28a-single-comment-approve` + `28b-single-comment-critical` | One issue comment + one formal Review per run; Review body empty/stub (W6) | two fixtures |
+| E2E-29 | `29-cluster` | Fragmented findings on the same code region merge into one with the strongest severity (W10) | stochastic |
 
 Each `fixtures/<NN-name>/README.md` has the verification checklist for that card.
 
