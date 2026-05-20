@@ -170,6 +170,15 @@ if ! git diff --quiet || ! git diff --cached --quiet; then
   exit 1
 fi
 
+# --- cache overlay before reset --------------------------------------------
+# e2e-baseline may predate this fixture (the tag is moved by hand). Checking
+# out the tag would otherwise wipe $OVERLAY off the working tree before we
+# get a chance to copy it. Stash it in a tmpdir and treat that as the source.
+OVERLAY_CACHE="$(mktemp -d)"
+trap 'rm -rf "$OVERLAY_CACHE"' EXIT
+cp -R "$OVERLAY/." "$OVERLAY_CACHE/"
+OVERLAY="$OVERLAY_CACHE"
+
 # --- reset to baseline ------------------------------------------------------
 echo "→ Resetting to e2e-baseline."
 # Prune stale remote-tracking refs so --force-with-lease doesn't reject a
