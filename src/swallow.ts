@@ -5,6 +5,7 @@
 // reworded title.
 
 export async function tryLoad(): Promise<unknown> {
+  console.log('[tryLoad] attempting fetchRemote');
   try {
     return await fetchRemote();
   } catch {
