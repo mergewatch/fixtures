@@ -65,6 +65,31 @@ gh pr close <N> --delete-branch
 | E2E-27 | `27-no-harness` | `AGENTS.md` declares no test suite → N "lacks coverage" findings collapse into one info note | |
 | E2E-28 | `28a-single-comment-approve` + `28b-single-comment-critical` | One issue comment + one formal Review per run; Review body empty/stub (W6) | two fixtures |
 | E2E-29 | `29-cluster` | Fragmented findings on the same code region merge into one with the strongest severity (W10) | stochastic |
+| E2E-30 | `30-confidence-floor` | Findings with `confidence < 75` deterministically dropped (FP-A) | stochastic |
+| E2E-31 | `31-prev-disputed-prefilter` | Rebutted prior findings excluded from orchestrator's `previousFindings` (FP-B) | manual triage + sync |
+| E2E-32 | `32-cross-agent-dedup` | Same-file-same-line cross-agent doubles merge before orchestrator (FP-C) | |
+| E2E-33 | `33-diagram-hallucinated-path` | Diagram citing a file NOT in the PR's changed-files set is dropped entirely (FP-D) | stochastic |
+| E2E-34 | `34-warning-verification` | Warning-severity findings flow through W2 verification + gain `verification` tag (FP-E) | |
+| E2E-35 | `35-inline-resolve` | Inline `/resolve` reply persists the finding's key — next review doesn't re-emit (FP-F) | manual resolve + sync |
+| E2E-36 | `36a-linter-present-eslint` + `36b-no-linter` | Linter-aware style agent defers lint-equivalent findings when eslint is present (FP-G) | two fixtures |
+| E2E-37 | `37-fp-record-storage` | FindingDispositionRecord rows written on every surfacing, dispute, resolve (FB-A) | DB inspection |
+| E2E-38 | `38-quiet-drop` | Finding gone without code change → `silentDropCount` increments (FB-B) | manual unrelated-file push |
+| E2E-39 | `39-inline-reactions` | 👎/🤔 increments `disputeCount`; 👍/❤️/🚀 increments `agreementCount` on inline (FB-C) | manual reactions |
+| E2E-40 | `40-mergewatch-reject` | `/mergewatch reject <category> [reason]` persists a categorised rejection (FB-D) | manual slash command |
+| E2E-41 | `41-nightly-rollup` | Nightly scheduled job produces InstallationFPInsight rollups (FB-E) | Lambda / admin endpoint |
+| E2E-42 | `42-funnel-chart` | Dashboard FP funnel chart: unsignaled / agreed / silentDropped / disputed (FB-F) | dashboard inspection |
+| E2E-43 | `43-dispute-by-agent` | Dashboard dispute-rate by agent category bar chart (FB-G) | dashboard inspection |
+| E2E-44 | `44-themes-table` | Dashboard sortable table of top-10 disputed clusters (FB-H) | dashboard inspection |
+| E2E-45 | `45-severity-shopping` | Severity-shopping detector chart: warnings vs criticals dispute rate (FB-I) | dashboard inspection |
+| E2E-46 | `46-repo-heatmap` | Per-repo FP heatmap on the org dashboard (FB-J) | dashboard inspection |
+| E2E-47 | `47-suggest-rule` | High-dispute cluster gets a copy-able `.mergewatch.yml` snippet suggestion (FB-K) | dashboard CTA |
+| E2E-48 | `48-known-fp-injection` | Opt-in `feedback.learnFromDisputes` injects top-K disputed clusters as soft prompt guidance (FB-L) — **TARGET** | config + pre-seed |
+| E2E-49 | `49-re-review-no-anchoring` | Re-review on a fix commit does NOT pattern-match round-1's framing onto unrelated code (FP-H) | manual fix + push |
+| E2E-50 | `50-suggestion-redundant` | Finding whose `suggestion` is byte-equivalent to existing code is dropped by the verifier (FP-I) | |
+| E2E-51 | `51-no-self-contradiction` | Re-review does NOT critique the application of a prior recommendation (FP-J L2) | manual fix + push |
+| E2E-52 | `52-unverified-critical-render` | Unverified critical drops off inline / action-table; lands in dedicated "Unverified concerns" sub-section (FP-L) | stochastic |
+| E2E-53 | `53-dispute-aware-reconcile` | Red verdict softened to advisory when majority of action findings are from chronically-disputed categories (FP-J L1/L3) | pre-seed FB-A data |
+| E2E-54 | `54a-abstraction-drizzle` + `54b-abstraction-encodeuri` + `54c-abstraction-jsx-text` + `54d-abstraction-raw-sql-keep` | Abstraction-aware verifier drops Drizzle eq() / encodeURIComponent / JSX text findings; keeps raw SQL (FP-K) | four fixtures |
 
 Each `fixtures/<NN-name>/README.md` has the verification checklist for that card.
 
