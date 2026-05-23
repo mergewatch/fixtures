@@ -4,5 +4,5 @@
 // findings on code that has no async/error surface.
 
 export function formatLabel(name: string, count: number): string {
-  return `${name} (${count})`;
+  return `${name} [${count}]`;
 }
