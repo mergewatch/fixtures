@@ -5,6 +5,11 @@
 // handler doesn't log enough" etc.
 
 export async function loadRemote(url: string): Promise<unknown> {
-  const res = await fetch(url);
-  return res.json();
+  try {
+    const res = await fetch(url);
+    return res.json();
+  } catch (err) {
+    console.error('[loadRemote] fetch failed', err);
+    throw err;
+  }
 }
