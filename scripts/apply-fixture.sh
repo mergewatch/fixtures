@@ -113,10 +113,12 @@ if [ -n "$PUSH_TO_EXISTING_BRANCH" ]; then
     echo "Remote branch $PUSH_TO_EXISTING_BRANCH does not exist. Apply the step-1 fixture first." >&2
     exit 1
   fi
-  if git show-ref --verify --quiet "refs/heads/$PUSH_TO_EXISTING_BRANCH"; then
-    git branch -D "$PUSH_TO_EXISTING_BRANCH" >/dev/null
-  fi
-  git checkout --quiet -b "$PUSH_TO_EXISTING_BRANCH" "origin/$PUSH_TO_EXISTING_BRANCH"
+  # -B creates-or-resets the local branch to the remote head and checks it out
+  # in one step. This works even when that branch is already the current HEAD —
+  # which it is when the step-1 fixture (e.g. 18a) ran immediately before in the
+  # same suite pass. A plain `branch -D` of the checked-out branch fails with
+  # "cannot delete branch ... used by worktree".
+  git checkout --quiet -B "$PUSH_TO_EXISTING_BRANCH" "origin/$PUSH_TO_EXISTING_BRANCH"
   echo "→ Applying overlay from $OVERLAY."
   find "$OVERLAY" -type f -print0 | while IFS= read -r -d '' src; do
     rel="${src#$OVERLAY/}"
