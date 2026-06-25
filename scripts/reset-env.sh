@@ -37,6 +37,9 @@ while :; do
   [ "${#OPEN_PRS[@]}" -eq 0 ] && break
   closed_this_round=0
   for pr in "${OPEN_PRS[@]}"; do
+    # gh always returns numeric PR ids; guard anyway so a malformed value never
+    # reaches the close call (defense-in-depth, never skips a real PR).
+    [[ "$pr" =~ ^[0-9]+$ ]] || { echo "    (skipping non-numeric id: $pr)" >&2; continue; }
     echo "→ Closing PR #$pr (deleting branch)."
     if gh pr close "$pr" --delete-branch >/dev/null 2>&1 \
       || gh pr close "$pr" >/dev/null 2>&1; then   # fall back if branch already gone

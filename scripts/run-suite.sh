@@ -17,7 +17,8 @@
 # scripts/reset-env.sh.
 #
 # Writes a run manifest to .e2e/last-run.json mapping each fixture to the PR it
-# opened (or its skip reason). /verify-suite reads this to grade the run.
+# opened and its apply status (ok/error). /verify-suite reads this to grade the
+# run.
 set -uo pipefail
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
