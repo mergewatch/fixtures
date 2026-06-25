@@ -1,0 +1,4 @@
+agentReview:
+  enabled: true
+  detection:
+    branchPrefixes: ["claude/", "cursor/", "codex/"]
