@@ -61,13 +61,19 @@ covers the new IDs.
 scripts/run-suite.sh
 ```
 
-This applies every fixture (opens a real PR per non-manual fixture). To pace
-for MergeWatch re-review, pass `SLEEP=60 scripts/run-suite.sh`. Report the
-pass/fail summary it prints.
+This applies every fixture (opens a real PR per non-manual fixture) and writes
+a run manifest to `.e2e/last-run.json`. To pace for MergeWatch re-review, pass
+`SLEEP=60 scripts/run-suite.sh`. Report the apply pass/fail summary it prints.
 
-## 5. Report
+## 5. Grade the run
 
-Summarize: which fixtures were missing and created, the suite pass/fail
-counts, and the open PRs that now need verification against their
-`fixtures/<name>/README.md`. Remind that `scripts/reset-env.sh` (or
-`/reset-env`) tears the run back down.
+Once MergeWatch has reviewed (~30–90s after apply), run `/verify-suite`. It
+reads the manifest, compares each PR's actual MergeWatch output against the
+fixture's expected outcomes, writes `.e2e/results.md`, and auto-files one issue
+in `mergewatch/mergewatch.ai` per regression.
+
+## 6. Report
+
+Summarize: which fixtures were missing and created, the apply pass/fail counts,
+and that `/verify-suite` should grade behavior next. Remind that
+`scripts/reset-env.sh` (or `/reset-env`) tears the run back down.
