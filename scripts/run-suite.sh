@@ -64,11 +64,13 @@ for name in "${FIXTURES[@]}"; do
   fi
 
   # Resolve the PR this fixture maps to (manual/reuse fixtures may have none).
+  # Keep pr strictly numeric-or-null: it's emitted unquoted into JSON, so any
+  # stray/non-numeric gh output would otherwise produce an invalid manifest.
   branch="$(fixture_branch "$name")"
   pr="null"
   if [ -n "$branch" ]; then
-    pr="$(gh pr view "$branch" --json number --jq .number 2>/dev/null || echo null)"
-    [ -z "$pr" ] && pr="null"
+    num="$(gh pr view "$branch" --json number --jq .number 2>/dev/null || true)"
+    [[ "$num" =~ ^[0-9]+$ ]] && pr="$num"
   fi
   ENTRIES+=("$(printf '{"fixture":"%s","branch":"%s","pr":%s,"applied":"%s"}' \
     "$name" "$branch" "$pr" "$applied")")

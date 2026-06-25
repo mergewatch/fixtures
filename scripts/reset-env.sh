@@ -26,16 +26,32 @@ NWO="$(gh repo view --json nameWithOwner --jq .nameWithOwner)"
 echo "→ Resetting environment for $NWO"
 
 # --- 1. close all open PRs (deletes their remote branch) --------------------
-mapfile -t OPEN_PRS < <(gh pr list --state open --limit 200 --json number --jq '.[].number')
-if [ "${#OPEN_PRS[@]}" -eq 0 ]; then
-  echo "→ No open PRs."
-else
+# Loop instead of a single capped list: a repo can have more open PRs than any
+# one --limit, and a teardown that silently leaves some open is a broken reset.
+# Each closed PR drops out of the next page, so we converge to zero; the
+# zero-progress guard stops us if a PR can't be closed (e.g. permissions).
+echo "→ Closing all open PRs."
+closed_total=0
+while :; do
+  mapfile -t OPEN_PRS < <(gh pr list --state open --limit 100 --json number --jq '.[].number')
+  [ "${#OPEN_PRS[@]}" -eq 0 ] && break
+  closed_this_round=0
   for pr in "${OPEN_PRS[@]}"; do
     echo "→ Closing PR #$pr (deleting branch)."
-    gh pr close "$pr" --delete-branch >/dev/null 2>&1 \
-      || gh pr close "$pr" >/dev/null   # fall back if branch already gone
+    if gh pr close "$pr" --delete-branch >/dev/null 2>&1 \
+      || gh pr close "$pr" >/dev/null 2>&1; then   # fall back if branch already gone
+      closed_total=$((closed_total + 1))
+      closed_this_round=$((closed_this_round + 1))
+    else
+      echo "    (could not close #$pr)" >&2
+    fi
   done
-fi
+  if [ "$closed_this_round" -eq 0 ]; then
+    echo "→ Remaining PRs could not be closed; stopping." >&2
+    break
+  fi
+done
+[ "$closed_total" -eq 0 ] && echo "→ No open PRs."
 
 # --- 2. delete remaining remote branches except main ------------------------
 git fetch --prune origin --quiet
