@@ -40,7 +40,11 @@ fixture_branch() {
 if [ "$#" -gt 0 ]; then
   FIXTURES=("$@")
 else
-  mapfile -t FIXTURES < <(ls -1 "$REPO_ROOT/fixtures" | sort)
+  # read into an array without mapfile (bash 4+) so this runs on macOS bash 3.2
+  FIXTURES=()
+  while IFS= read -r fx; do
+    [ -n "$fx" ] && FIXTURES+=("$fx")
+  done < <(ls -1 "$REPO_ROOT/fixtures" | sort)
 fi
 
 TOTAL="${#FIXTURES[@]}"

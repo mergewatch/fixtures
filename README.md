@@ -90,6 +90,17 @@ gh pr close <N> --delete-branch
 | E2E-52 | `52-unverified-critical-render` | Unverified critical drops off inline / action-table; lands in dedicated "Unverified concerns" sub-section (FP-L) | stochastic |
 | E2E-53 | `53-dispute-aware-reconcile` | Red verdict softened to advisory when majority of action findings are from chronically-disputed categories (FP-J L1/L3) | pre-seed FB-A data |
 | E2E-54 | `54a-abstraction-drizzle` + `54b-abstraction-encodeuri` + `54c-abstraction-jsx-text` + `54d-abstraction-raw-sql-keep` | Abstraction-aware verifier drops Drizzle eq() / encodeURIComponent / JSX text findings; keeps raw SQL (FP-K) | four fixtures |
+| E2E-55 | `55-ttm-capture` | Every PR writes one PRLifecycleRecord; open/push/merge/close transitions captured; `closed` doesn't trigger a review; set-once + terminal-state discipline (TTM) | manual open/push/merge/close |
+| E2E-56 | `56-ttm-rollup` | Hourly rollup attaches a `cycleTime` block (merge counts + median/p75/p90 time-to-merge, segmented reviewed vs unreviewed); open/closed excluded from time stats (TTM) | seed + rollup |
+| E2E-57 | `57-ttm-dashboard` | `/dashboard/analytics` Cycle time section: StatCards + reviewed-vs-unreviewed bar; relaxed zero-state gate; `null` → `—` (TTM) | dashboard inspection, reuses 56 |
+| E2E-58 | `58-engagement-resolve` | `/resolve` on an inline thread increments `resolveCount` on the FindingDispositionRecord alongside `disputeCount`; defaults 0, no backfill; both backends (engagement) | manual resolve + DB inspection |
+| E2E-59 | `59-engagement-rollup` | Hourly rollup attaches an `engagement` block (acceptance, command usage, approx action rate, re-review rate, reviewed-PR count); `null` for empty denominators (engagement) | seed + rollup |
+| E2E-60 | `60-engagement-dashboard` | `/dashboard/analytics` Developer engagement section: StatCards + cross-window trend; relaxed gate; `null` → `—`; trend gaps on null windows (engagement) | dashboard inspection, reuses 59 |
+| E2E-61 | `61-helpful-prompt` | Summary comment renders "Was this review helpful? 👍/👎"; reacting records a snapshot-delta (monotonic); rollup fills `helpful*`; dashboard Helpful rate (engagement) | manual reactions |
+| E2E-62 | `62-nps-survey` | `/dashboard/analytics` NPS prompt (0–10), throttled once/90d per `githubUserId`; rollup computes NPS = %promoters − %detractors; NPS StatCard (engagement) | dashboard interaction |
+| E2E-63 | `63-cost` | Each review writes a ReviewCostRecord; hourly rollup aggregates a `cost` block (total spend, avg/review, cost/finding, per-repo); unknown-model = "unpriced", excluded from money (cost) | seed + rollup + dashboard |
+| E2E-64 | `64-dashboard-restructure` | Dashboard split by intent: Analytics = Activity + Impact; FP Insights renamed Accuracy; old `/dashboard/insights` 308-redirects; rollup hourly both runtimes (#218) | dashboard inspection |
+| E2E-65 | `65-analytics-tabs` | `/dashboard/analytics` tabbed (Overview · Cost & Impact · Findings · Activity · Accuracy); active tab in `?tab=`; `/dashboard/accuracy` → `?tab=accuracy`; filter bar scoped to data tabs (#227) | dashboard inspection |
 
 Each `fixtures/<NN-name>/README.md` has the verification checklist for that card.
 
