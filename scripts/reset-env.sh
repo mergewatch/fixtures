@@ -33,7 +33,11 @@ echo "→ Resetting environment for $NWO"
 echo "→ Closing all open PRs."
 closed_total=0
 while :; do
-  mapfile -t OPEN_PRS < <(gh pr list --state open --limit 100 --json number --jq '.[].number')
+  # read into an array without mapfile (bash 4+) so this runs on macOS bash 3.2
+  OPEN_PRS=()
+  while IFS= read -r pr_num; do
+    [ -n "$pr_num" ] && OPEN_PRS+=("$pr_num")
+  done < <(gh pr list --state open --limit 100 --json number --jq '.[].number')
   [ "${#OPEN_PRS[@]}" -eq 0 ] && break
   closed_this_round=0
   for pr in "${OPEN_PRS[@]}"; do
@@ -58,17 +62,18 @@ done
 
 # --- 2. delete remaining remote branches except main ------------------------
 git fetch --prune origin --quiet
-mapfile -t REMOTE_BRANCHES < <(
-  git for-each-ref --format='%(refname:short)' refs/remotes/origin \
-    | sed 's#^origin/##' \
-    | grep -vxE 'main|HEAD'
-)
-for b in "${REMOTE_BRANCHES[@]}"; do
+# while-read over process substitution (no mapfile) keeps the body in the
+# current shell and stays bash 3.2 compatible.
+while IFS= read -r b; do
   [ -z "$b" ] && continue
   echo "→ Deleting remote branch origin/$b."
   git push origin --delete "$b" --quiet 2>/dev/null \
     || echo "    (already gone)"
-done
+done < <(
+  git for-each-ref --format='%(refname:short)' refs/remotes/origin \
+    | sed 's#^origin/##' \
+    | grep -vxE 'main|HEAD'
+)
 
 # --- 3. return to main, reset to baseline -----------------------------------
 git checkout --quiet main 2>/dev/null || git checkout --quiet -B main
@@ -81,12 +86,11 @@ else
 fi
 
 # --- 4. delete all local branches except main -------------------------------
-mapfile -t LOCAL_BRANCHES < <(git for-each-ref --format='%(refname:short)' refs/heads | grep -vx main)
-for b in "${LOCAL_BRANCHES[@]}"; do
+while IFS= read -r b; do
   [ -z "$b" ] && continue
   echo "→ Deleting local branch $b."
   git branch -D "$b" >/dev/null
-done
+done < <(git for-each-ref --format='%(refname:short)' refs/heads | grep -vx main)
 
 # --- 5. final prune ---------------------------------------------------------
 git fetch --prune origin --quiet
