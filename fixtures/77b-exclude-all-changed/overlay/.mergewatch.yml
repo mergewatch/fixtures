@@ -1,0 +1,14 @@
+# E2E-77b: the degenerate case — every changed file in this PR is excluded, so
+# the diff handed to the agents is EMPTY.
+#
+# The PR changes exactly two files: src/api.generated.ts and this config. Both
+# patterns below are needed to empty the agent diff completely — without the
+# second, .mergewatch.yml itself would remain in the diff and the case would
+# not actually be degenerate. The config is still READ from the branch head
+# regardless of being filtered out of the diff, so excluding it does not
+# disable itself.
+#
+# Expected: a clean review, not a crash and not a skip.
+excludePatterns:
+  - "**/*.generated.ts"
+  - ".mergewatch.yml"

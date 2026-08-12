@@ -1,0 +1,7 @@
+# E2E-80b: point conventions explicitly at the oversized file so the cap is
+# exercised on a known path (no reliance on auto-discovery — that's 80a's job).
+#
+# docs/house-rules.md is deliberately larger than CONVENTIONS_MAX_BYTES
+# (16 KB). It carries one rule near the TOP (inside the cap) and one rule near
+# the BOTTOM (past the cap). Only the first may reach the agents.
+conventions: docs/house-rules.md
