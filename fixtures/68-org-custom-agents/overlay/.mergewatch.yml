@@ -1,0 +1,10 @@
+# E2E-68: a repo-level custom agent deliberately named the SAME as the org
+# agent configured in Settings → Custom Agents. The runtime runs org and repo
+# customAgents in UNION, but the ORG definition wins on a name collision — so
+# the findings on this PR must carry the org agent's prompt/severity, never
+# this weaker repo-level one. If you see a *warning* about TODOs rather than
+# the org agent's *critical*, precedence has regressed.
+customAgents:
+  - name: no-todo
+    prompt: Mention TODO comments in passing. Do not treat them as important.
+    severity: info

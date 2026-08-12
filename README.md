@@ -101,6 +101,22 @@ gh pr close <N> --delete-branch
 | E2E-63 | `63-cost` | Each review writes a ReviewCostRecord; hourly rollup aggregates a `cost` block (total spend, avg/review, cost/finding, per-repo); unknown-model = "unpriced", excluded from money (cost) | seed + rollup + dashboard |
 | E2E-64 | `64-dashboard-restructure` | Dashboard split by intent: Analytics = Activity + Impact; FP Insights renamed Accuracy; old `/dashboard/insights` 308-redirects; rollup hourly both runtimes (#218) | dashboard inspection |
 | E2E-65 | `65-analytics-tabs` | `/dashboard/analytics` tabbed (Overview · Cost & Impact · Findings · Activity · Accuracy); active tab in `?tab=`; `/dashboard/accuracy` → `?tab=accuracy`; filter bar scoped to data tabs (#227) | dashboard inspection |
+| E2E-66 | `66-selfhosted-cost-pricing` | Self-hosted cost populates whenever the model is priced; `.mergewatch.yml` `pricing:` override parsed; `0`/`0` = priced $0; unpriced → actionable hint + one-time warn (#231) | self-hosted + dashboard |
+| E2E-67 | `67-env-model-pricing` | `LLM_MODEL_INPUT/OUTPUT_PRICE_PER_1M` price the global `LLM_MODEL` (incl. a Bedrock ARN); inline replies priced too; per-repo `pricing:` wins; partial/invalid → one-time warn (#233) | self-hosted env |
+| E2E-68 | `68-org-custom-agents` | Org-level custom agents run in union with repo `customAgents` (org wins on name clash); blocking critical → REQUEST_CHANGES + `Blocked by org agent:` check; scope + path targeting gate execution (#235) | dashboard config first |
+| E2E-69 | `69-mcp-review-diff` | MCP `review_diff` reviews a supplied diff with no PR; `repo` loads config + conventions; `agentAuthored: true`; grounding still applies; `-32602` on bad params | MCP curl / stdio |
+| E2E-70 | `70-mcp-review-status` | MCP `get_review_status` returns the latest review row; `mergewatch://conventions/{owner}/{repo}` serves resolved conventions markdown | MCP, reuses 01 |
+| E2E-71 | `71-mcp-api-key-scope` | API keys are admin-only, hashed, shown once; out-of-scope repo → `-32001`; revocation effective on the next request; `lastUsedAt` advances | dashboard + API |
+| E2E-72 | `72-mcp-session-dedup` | Same `sessionId` within 30 min bills only the positive delta; new session bills in full; window expiry resets; omitting `sessionId` disables dedup | paid installation |
+| E2E-73 | `73-billing-free-tier` | 5 lifetime free reviews per installation; the 6th blocks **before** the LLM call (no cost record); notification fires once; MCP returns `-32002` | fresh installation |
+| E2E-74 | `74-billing-topup` | Manual top-up creates no subscription; auto-reload off by default; concurrent drops produce exactly one charge (`autoReloadInFlight`); declined card blocks | Stripe test card |
+| E2E-75 | `75a-maxfiles-over` + `75b-maxfiles-boundary` | Over `rules.maxFiles` → **visible** "Review skipped" check naming the limit; mention overrides; boundary is inclusive | two fixtures |
+| E2E-76 | `76a-review-on-mention-off` + `76b-both-triggers-off` | `reviewOnMention: false` suppresses mention-triggered reviews (reason `reviewOnMentionOff`, not `autoReviewOff`); both flags off → no trigger path | two fixtures |
+| E2E-77 | `77a-exclude-generated` + `77b-exclude-all-changed` | `excludePatterns` filters the **agent diff** without changing the skip decision; excluding every changed file yields a clean review, not a crash | two fixtures |
+| E2E-78 | `78a-output-shaping` + `78b-post-summary-on-clean` | `minSeverity` filters inclusively by tier; `maxFindings` truncates **by rank** and discloses it; `postSummaryOnClean: false` drops the comment but not the check run | two fixtures |
+| E2E-79 | `79-ux-block` | `ux` toggles change only presentation — `tone` rewords without changing the finding set; `commentHeader` is escaped against markdown/HTML injection | config iterations |
+| E2E-80 | `80a-conventions-order` + `80b-conventions-cap` | Discovery order `conventions:` → `AGENTS.md` → `CONVENTIONS.md` → `.mergewatch/conventions.md`, first hit wins, explicit path never falls back; >16 KB truncates with a visible marker | two fixtures |
+| E2E-81 | `81-file-request-budget` | `codebaseAwareness` fetches out-of-diff files within `maxFileRequestRounds` / `maxContextKB`; awareness off → no fabricated contents; budget hit degrades, not fails | config iterations |
 
 Each `fixtures/<NN-name>/README.md` has the verification checklist for that card.
 
