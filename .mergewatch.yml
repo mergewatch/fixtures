@@ -1,0 +1,15 @@
+# E2E-79: every ux knob set away from its default at once, so a single review
+# exercises the whole block. Walk them back one at a time (see the fixture
+# README) to attribute any breakage to a specific toggle.
+#
+# commentHeader deliberately carries markdown, raw HTML, and a link. It must
+# be ESCAPED and rendered as literal text. If any of it renders as a heading,
+# an anchor, or an <img> tag, header content is an injection vector into every
+# review comment this installation posts.
+ux:
+  tone: direct
+  showWorkDone: false
+  showSuppressedCount: true
+  reviewerChecklist: true
+  allClearMessage: false
+  commentHeader: '# Acme Review Bot <img src=x onerror=alert(1)> [click](https://example.com/pwn) **bold**'
