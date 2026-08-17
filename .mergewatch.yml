@@ -1,0 +1,9 @@
+# E2E-75b: same ceiling as 75a, but this PR changes exactly 3 files (this
+# config + 2 sources) — the inclusive boundary. It must REVIEW, not skip.
+#
+# Note on counting: if .mergewatch.yml is included in the changed-file total
+# this PR sits exactly AT the limit; if it is excluded, the total is 2, still
+# under. Either way the expected outcome is the same — a review runs. Check the
+# skip-evaluation log line to confirm which number the gate actually counted.
+rules:
+  maxFiles: 3
