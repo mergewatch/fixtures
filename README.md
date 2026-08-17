@@ -117,6 +117,12 @@ gh pr close <N> --delete-branch
 | E2E-79 | `79-ux-block` | `ux` toggles change only presentation — `tone` rewords without changing the finding set; `commentHeader` is escaped against markdown/HTML injection | config iterations |
 | E2E-80 | `80a-conventions-order` + `80b-conventions-cap` | Discovery order `conventions:` → `AGENTS.md` → `CONVENTIONS.md` → `.mergewatch/conventions.md`, first hit wins, explicit path never falls back; >16 KB truncates with a visible marker | two fixtures |
 | E2E-81 | `81-file-request-budget` | `codebaseAwareness` fetches out-of-diff files within `maxFileRequestRounds` / `maxContextKB`; awareness off → no fabricated contents; budget hit degrades, not fails | config iterations |
+| E2E-82 | `82-oss-sponsored-review` | Active OSS grant sponsors reviews on the named public repo with no free-tier/balance consumption; unnamed repos gated; private flip stops sponsorship, rename doesn't; revoke degrades to free tier (#263, #265) | dedicated installation + grant |
+| E2E-83 | `83-oss-grant-lifecycle` | `grant-oss.ts` grant/add/remove/revoke/inspect; refuses without `--stage`; private repo rejected; blast radius shown before writing (#266) | operator CLI |
+| E2E-84 | `84-windowed-rollups` | `periodCounts` per-UTC-day buckets written atomically with lifetime counters; rollup windows sum only in-window activity (`7d ≤ 30d ≤ 90d`); legacy records ramp up instead of injecting lifetime history (#334) | seed + rollup trigger |
+| E2E-85 | `85-time-ordered-reviews` | `listReviews` via `ByRepoCreatedAt` GSI: true `createdAt` order across PR numbers; date bounds in the key condition; loss-free v2 cursors; sticky legacy fallback without the GSI (#335) | seed + dashboard/API |
+| E2E-86 | `86-p95-nearest-rank` | p95 duration uses nearest-rank (`⌈n × 0.95⌉`); < 20 completed reviews → "—" + tooltip, no P95 bar; 20 distinct durations → second-highest, not the max (#336) | dashboard inspection |
+| E2E-87 | `87-date-only-bounds` | `/api/analytics` date-only bounds expand to UTC day edges (`end_date` includes its whole day); full timestamps honored verbatim; identical on both backends (#337) | seed + API inspection |
 
 Each `fixtures/<NN-name>/README.md` has the verification checklist for that card.
 
