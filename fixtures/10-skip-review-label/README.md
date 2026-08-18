@@ -10,24 +10,12 @@ A PR carrying a label in `rules.ignoreLabels` is skipped. `skip-review` is the d
 ./scripts/apply-fixture.sh 10-skip-review-label
 ```
 
-Then choose one path:
-
-**Path A — label, then synchronize:**
-
-```bash
-gh pr edit <N> --add-label skip-review
-git commit --allow-empty -m 'trigger synchronize'
-git push
-```
-
-**Path B — open as draft, label, mark ready:**
-
-```bash
-# (Note: the runner currently opens 10 as non-draft. To use Path B, edit
-#  fixtures/10-skip-review-label/meta.env and set DRAFT=true before running.)
-gh pr edit <N> --add-label skip-review
-gh pr ready <N>
-```
+The runner handles the sequencing automatically (`LABELS=skip-review` in
+`meta.env`): it opens the PR as a **draft** (drafts are skipped), adds the
+`skip-review` label, then marks the PR ready — so the label is guaranteed to be
+on the PR before `ready_for_review`, the first review-triggering event it can
+influence. Expect an initial "Review skipped — Draft PR" check from the draft
+phase; the decisive artifact is the ignoreLabels skip after ready.
 
 If the label `skip-review` doesn't exist on the fixtures repo yet, create it first:
 
