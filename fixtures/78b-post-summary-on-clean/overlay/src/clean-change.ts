@@ -1,12 +1,3 @@
-// E2E-78b fixture: a genuinely clean, well-formed change — validated input,
-// explicit error handling, no unhandled promise, no injection surface. It
-// must produce a CLEAN review, because the behavior under test only applies
-// when there are no findings to report.
-//
-// Modelled on the E2E-01 clean-PR shape. If this draws findings, the fixture
-// is not exercising postSummaryOnClean at all — fix the file before reading
-// anything into the result.
-
 export type Money = { cents: number; currency: 'USD' | 'EUR' };
 
 export function addMoney(a: Money, b: Money): Money {

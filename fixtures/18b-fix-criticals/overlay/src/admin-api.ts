@@ -24,7 +24,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     return new Response('Server error', { status: 500 });
   }
   const { id } = await req.json();
-  // Parameterized query — string concatenation is gone.
+  // Bind the id as a query parameter.
   const result = await db.prepare('SELECT * FROM users WHERE id = ?', [id]);
   return Response.json(result);
 }

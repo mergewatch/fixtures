@@ -1,12 +1,5 @@
-# E2E-78a: two independent output knobs, set to their first test position.
-#
-# Step 1 of the ladder is `minSeverity: info` (the default) — start there by
-# commenting out the line below and pushing, so you can see all three tiers
-# before filtering. Then restore `warning`, then `critical`, pushing between
-# each step and diffing the posted findings.
-#
-# maxFindings is set below the number of findings this diff produces, so the
-# truncation must (a) keep the HIGHEST-RANKED findings, not the first ones
-# discovered, and (b) tell the reader that findings were withheld.
+# Only surface warnings and above, and cap how many findings land on a PR so
+# the summary stays readable. When more are found than the cap allows, the
+# most severe are kept and the reader is told some were withheld.
 minSeverity: warning
 maxFindings: 3

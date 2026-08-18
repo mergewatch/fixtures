@@ -32,6 +32,25 @@ gh pr close <N> --delete-branch
 
 `apply-fixture.sh` always resets to `e2e-baseline` before applying an overlay, so fixtures stay reproducible regardless of prior runs.
 
+## Bait sterility (issue #349)
+
+Everything the reviewer can see must read like a real engineer's PR. The
+reviewer ingests the **diff, the PR title/body, and config comments** — if any
+of it says "E2E", "fixture", "bait", or gives harness instructions, the model
+rationally excuses the planted defect ("intentional test code") and the fixture
+silently stops testing anything (see mergewatch.ai#368).
+
+Rules for authoring or editing fixtures:
+
+- Overlay files carry only comments a production author would write. The defect
+  must stand on its own; never annotate it.
+- `meta.env` `TITLE` / `BODY` are the PR title/body — write them as natural
+  change descriptions. No `E2E-NN`, no README pointers.
+- The grading contract (expected outcomes, failure modes, RUNBOOK card mapping)
+  lives **only** in the fixture's `README.md`, which is never shipped in a PR.
+- The fixture ↔ PR mapping is the **branch name** (`fixture/NN-…`), which the
+  runner and `/verify-suite` key on.
+
 ## Fixture index
 
 | ID | Name | Behavior | Manual? |

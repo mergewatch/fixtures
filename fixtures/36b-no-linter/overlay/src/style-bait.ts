@@ -1,7 +1,3 @@
-// E2E-36b: SAME style-noisy code as 36a, but without an eslint.config.mjs at
-// the root. detectLinters returns [], no LINTER_AWARE_DIRECTIVE is rendered,
-// and the style agent should emit its full set of findings (lint-equivalent
-// AND code-smell).
 import { readFileSync } from 'fs'
 import { unusedHelper } from './unrelated'
 

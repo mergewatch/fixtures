@@ -1,5 +1,4 @@
-# E2E-38 notes
+# Aggregation notes
 
-This doc file exists so step 2 has an unrelated file to edit without touching
-`src/wavering.ts` (which would change the cited code's fingerprint and
-disqualify the quiet-drop signal).
+`sumByKey` groups rows by their `k` field and sums the corresponding `v`
+values. Keys are treated case-sensitively and missing values default to 0.

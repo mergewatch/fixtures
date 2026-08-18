@@ -1,9 +1,5 @@
-# E2E-76a: the inverse of E2E-05. autoReview stays ON so the PR reviews when
-# it opens — that first review is the control, proving the pipeline is healthy.
-# reviewOnMention is OFF, so a later '@mergewatch review' comment must NOT
-# produce a second review, and the skip must be attributed to
-# `reviewOnMentionOff` — never to `autoReviewOff`, which is a different cause
-# and would make the dashboard's skip breakdown lie.
+# Review every PR automatically on open; disable mention-triggered re-reviews
+# to keep comment threads from kicking off duplicate runs.
 rules:
   autoReview: true
   reviewOnMention: false

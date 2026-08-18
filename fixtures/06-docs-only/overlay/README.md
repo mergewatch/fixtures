@@ -1,41 +1,26 @@
-# mergewatch-fixtures
+# acme-notes
 
-Scratch repo for [MergeWatch](https://github.com/apps/mergewatch) end-to-end tests.
-
-The authoritative test procedure lives in the main repo: [`mergewatch.ai/e2e/RUNBOOK.md`](https://github.com/santthosh/mergewatch.ai/blob/main/e2e/RUNBOOK.md).
+A small TypeScript project with a handful of arithmetic and greeting helpers.
 
 ## Layout
 
 ```
-src/                  # baseline source tree fixtures mutate
-fixtures/             # one directory per E2E-NN card from the runbook
-  <NN-name>/
-    overlay/          # files copied on top of the baseline working tree
-    README.md         # fixture summary + expected-outcomes checklist
-scripts/
-  bootstrap.sh        # re-create the seeded baseline from scratch
-  apply-fixture.sh    # reset → branch → overlay → push → open PR
+src/
+  app.ts          # user-facing entry points (greet)
+  utils.ts        # shared pure helpers (add, multiply)
+  utils.test.ts   # unit tests (vitest)
+scripts/          # repo maintenance scripts
 ```
 
-## Workflow
+## Development
 
 ```bash
-# one-time: tag the baseline (only needed on a fresh clone)
-./scripts/bootstrap.sh
-
-# run a fixture
-./scripts/apply-fixture.sh 01-clean-pr
-
-# tear down between runs
-gh pr close <N> --delete-branch
+npm install
+npx vitest        # run the unit tests
 ```
 
-See `fixtures/<NN-name>/README.md` for each fixture's expected outcomes — those are the assertions you verify manually after the PR is open.
+Helpers in `src/utils.ts` are pure functions — keep them side-effect free and covered by a test in `src/utils.test.ts` when you add one.
 
-The seed commit is tagged `e2e-baseline`. `apply-fixture.sh` always resets to this tag before applying an overlay so fixtures stay reproducible.
+## Contributing
 
----
-
-### Note from E2E-06
-
-This paragraph exists to provide a docs-only diff for the smart-skip fixture.
+Open a pull request against `main`. Keep changes small and focused; docs-only fixes are welcome.

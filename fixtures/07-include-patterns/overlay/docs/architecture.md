@@ -1,13 +1,15 @@
 # Architecture
 
-The fixtures repo is intentionally minimal — see `src/` for the baseline tree and `fixtures/` for per-test overlays.
+The codebase is intentionally small — a thin app layer over a set of pure helpers.
 
 ## Components
 
-- **Baseline**: a small TypeScript surface (`src/app.ts`, `src/utils.ts`) chosen because it's large enough to produce meaningful diffs and small enough that review noise is obvious.
-- **Overlay**: each fixture lays files on top of the baseline tree. The fixture's branch carries one commit on top of `e2e-baseline`.
-- **Reset path**: `scripts/bootstrap.sh` returns the working tree to the tagged baseline between runs.
+- **App layer** (`src/app.ts`): user-facing entry points. Currently exposes `greet`, which formats a greeting for a given name.
+- **Utilities** (`src/utils.ts`): pure arithmetic helpers (`add`, `multiply`). These have no side effects and no external dependencies, so they can be reused anywhere.
+- **Tests** (`src/utils.test.ts`): vitest unit tests covering the utility helpers.
 
-## Why this fixture exists
+## Conventions
 
-`includePatterns` should pull docs-only diffs back into the review path. Without this override, the smart-skip path would fire (see E2E-06).
+- Keep helpers in `src/utils.ts` pure — no I/O, no shared state.
+- New public functions should ship with unit tests in the matching `*.test.ts` file.
+- Docs live under `docs/` and are reviewed like any other change.

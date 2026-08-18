@@ -1,8 +1,4 @@
-# E2E-76b: both trigger paths disabled. Nothing can start a review on this PR
-# — not opening it, not mentioning the bot. The PR must stay completely
-# silent, and each attempt should record its own distinct skip reason
-# (autoReviewOff for the open, reviewOnMentionOff for the mention) rather than
-# collapsing into one.
+# Pause automated reviews on this repo for now.
 rules:
   autoReview: false
   reviewOnMention: false
