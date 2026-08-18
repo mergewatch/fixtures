@@ -1,0 +1,5 @@
+# Keep TODO chatter low-noise in reviews; we track them in the issue tracker.
+customAgents:
+  - name: no-todo
+    prompt: Mention TODO comments in passing. Do not treat them as important.
+    severity: info
