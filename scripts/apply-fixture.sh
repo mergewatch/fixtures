@@ -53,7 +53,7 @@ fi
 # Comments (#) and blank lines are ignored.
 BRANCH=""; TITLE=""; BODY=""; DRAFT="false"
 SKIP_APPLY="false"; MANUAL_ONLY="false"; REUSES=""; POST_OPEN_HINT=""
-PUSH_TO_EXISTING_BRANCH=""; COMMIT_MESSAGE=""
+PUSH_TO_EXISTING_BRANCH=""; COMMIT_MESSAGE=""; LABELS=""
 while IFS='=' read -r key value; do
   # strip trailing \r in case of CRLF
   value="${value%$'\r'}"
@@ -68,6 +68,7 @@ while IFS='=' read -r key value; do
     POST_OPEN_HINT) POST_OPEN_HINT="$value" ;;
     PUSH_TO_EXISTING_BRANCH) PUSH_TO_EXISTING_BRANCH="$value" ;;
     COMMIT_MESSAGE) COMMIT_MESSAGE="$value" ;;
+    LABELS) LABELS="$value" ;;
     "" | \#*) ;;
   esac
 done < <(grep -v '^[[:space:]]*#' "$META" | grep '=')
@@ -221,11 +222,23 @@ git push --quiet -u origin "$BRANCH" --force-with-lease
 
 # --- open PR ----------------------------------------------------------------
 PR_ARGS=(pr create --title "$TITLE" --body "$BODY" --base main --head "$BRANCH")
-if [ "$DRAFT" = "true" ]; then
+if [ "$DRAFT" = "true" ] || [ -n "$LABELS" ]; then
+  # LABELS fixtures must have the label on the PR before the review-triggering
+  # event fires. Labels can't be attached atomically at creation, so open as a
+  # draft (drafts are skipped), label it, then flip ready — ready_for_review is
+  # the first trigger the label can influence.
   PR_ARGS+=(--draft)
 fi
 echo "→ Opening PR."
 PR_URL="$(gh "${PR_ARGS[@]}")"
+
+if [ -n "$LABELS" ]; then
+  echo "→ Labeling PR ($LABELS) before marking ready."
+  gh pr edit "$BRANCH" --add-label "$LABELS"
+  if [ "$DRAFT" != "true" ]; then
+    gh pr ready "$BRANCH"
+  fi
+fi
 
 echo ""
 echo "✓ Fixture $NAME applied."
