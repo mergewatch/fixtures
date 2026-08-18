@@ -1,7 +1,7 @@
 /**
  * Escape HTML-ish characters in a string. Used by renderers that
- * embed user content into Mermaid labels — historically the source
- * of <br/> bleed-through and &lt; entity leaks.
+ * embed user content into markup: `<` becomes `&lt;`, `>` becomes
+ * `&gt;`, and literal tags such as `<br/>` are neutralized.
  */
 export function escapeHtml(input: string): string {
   return input

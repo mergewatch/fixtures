@@ -1,5 +1,5 @@
-// Filename contains angle brackets to stress Mermaid node-ID sanitization.
-// Historically: <Title>.tsx bled raw `<` into Mermaid labels.
+// Minimal heading component for the static renderer — returns raw markup
+// rather than a vDOM node so it can be used outside React.
 
 export type TitleProps = {
   children: string;

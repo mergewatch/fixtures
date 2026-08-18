@@ -1,7 +1,3 @@
-// E2E-36a: deliberately style-noisy code that would draw both lint-equivalent
-// findings (missing semicolons, unused import) AND code-smell findings (god
-// function, deep nesting, magic numbers). With eslint.config.mjs at root,
-// FP-G must defer the lint-equivalent ones but keep the code-smells.
 import { readFileSync } from 'fs'
 import { unusedHelper } from './unrelated'
 

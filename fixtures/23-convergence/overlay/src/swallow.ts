@@ -1,8 +1,5 @@
-// E2E-23 step 1: a broad catch that reliably draws one stable warning.
-// The catch-all is the intentional fail-safe — step 2 posts a triage rebuttal
-// then adds a log line (shifting subsequent line numbers) to verify that the
-// rebutted finding is suppressed AND not duplicated as 🆕 new under a
-// reworded title.
+// Best-effort loader for the remote payload. Failures of any kind degrade
+// to null so callers can fall back to local defaults.
 
 export async function tryLoad(): Promise<unknown> {
   try {

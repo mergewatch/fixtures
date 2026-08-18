@@ -2,12 +2,12 @@
  * Handle the OAuth callback.
  *
  * Path:	/auth/callback
- * Notes:	the path includes	a tab and a
- *          newline in this docstring intentionally to stress the
- *          Mermaid sanitizer.
+ * Notes:	the provider redirects	here with a code and
+ *          state pair; both are validated before we exchange
+ *          the code for a session token.
  */
 export function handleCallback(code: string, state: string): { ok: boolean } {
-  // pretend to do something with the code/state pair
+  // TODO: exchange the code for a token once the token service lands
   return { ok: code.length > 0 && state.length > 0 };
 }
 

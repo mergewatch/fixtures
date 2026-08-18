@@ -1,11 +1,6 @@
-# E2E-79: every ux knob set away from its default at once, so a single review
-# exercises the whole block. Walk them back one at a time (see the fixture
-# README) to attribute any breakage to a specific toggle.
-#
-# commentHeader deliberately carries markdown, raw HTML, and a link. It must
-# be ESCAPED and rendered as literal text. If any of it renders as a heading,
-# an anchor, or an <img> tag, header content is an injection vector into every
-# review comment this installation posts.
+# Presentation settings for the review comment: a direct tone, no work-done
+# section, show the suppressed-finding count, include a reviewer checklist,
+# drop the all-clear block on clean PRs, and use our own comment header.
 ux:
   tone: direct
   showWorkDone: false

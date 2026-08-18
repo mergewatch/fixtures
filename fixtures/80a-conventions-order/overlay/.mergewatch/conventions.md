@@ -1,10 +1,8 @@
 # Engineering conventions — MARKER-DOTDIR
 
-This file is candidate **#4** — the last in the resolution order. It must be
-ignored while any higher candidate exists, and wins only once both
-`AGENTS.md` and `CONVENTIONS.md` are gone.
+Conventions the review should enforce on this repository.
 
-## House rule (unique to this file)
+## House rule
 
 - **Never use the `any` type.** Use `unknown` and narrow, or declare a precise
   type. An `any` annotation is a review-blocking convention violation in this

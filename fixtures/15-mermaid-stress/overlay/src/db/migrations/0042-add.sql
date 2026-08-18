@@ -1,5 +1,4 @@
--- Migration 0042: add the foo column.
--- Path includes slashes/numbers that historically broke Mermaid node IDs.
+-- 0042: add users.foo, backing the new profile flags UI.
 
 ALTER TABLE users
   ADD COLUMN foo TEXT NOT NULL DEFAULT '';

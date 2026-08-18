@@ -1,6 +1,3 @@
-# E2E-75a: drop the maxFiles ceiling from its default of 50 to 3 so a small
-# fixture PR can trip it. This PR changes 5 files (this config + 4 sources),
-# which is over the limit under either counting convention — whether or not
-# .mergewatch.yml itself is counted in the changed-file total.
+# Keep automated reviews focused on small PRs.
 rules:
   maxFiles: 3
