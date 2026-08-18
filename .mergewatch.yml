@@ -1,0 +1,7 @@
+# E2E-78b: the third output-shaping knob. On a CLEAN PR, suppress the summary
+# comment entirely — teams that review dozens of PRs a day don't want an
+# "all clear" comment on every one.
+#
+# Critically, this suppresses only the COMMENT. The check run must still
+# report, or the PR loses its merge signal and the setting becomes a footgun.
+postSummaryOnClean: false
