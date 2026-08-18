@@ -114,6 +114,39 @@ if [ -n "$PUSH_TO_EXISTING_BRANCH" ]; then
     echo "Remote branch $PUSH_TO_EXISTING_BRANCH does not exist. Apply the step-1 fixture first." >&2
     exit 1
   fi
+
+  # Wait for the step-1 review to COMPLETE before pushing step 2. Without this,
+  # both phases land seconds apart and every review grades the cumulative PR
+  # diff — i.e. the already-fixed code — so the introduce-phase review the
+  # fixture exists to test never happens (mergewatch/mergewatch.ai#375). A fixed
+  # sleep is not enough: reviews queue under burst, so poll the check run on the
+  # branch's current head. Skip with WAIT_FOR_REVIEW=0 (manual runs where the
+  # operator has already verified the first review).
+  if [ "${WAIT_FOR_REVIEW:-1}" != "0" ]; then
+    NWO="$(gh repo view --json nameWithOwner --jq .nameWithOwner)"
+    STEP1_SHA="$(git ls-remote origin "refs/heads/$PUSH_TO_EXISTING_BRANCH" | cut -f1)"
+    WAIT_TIMEOUT="${WAIT_TIMEOUT:-600}"
+    WAIT_INTERVAL=10
+    waited=0
+    echo "→ Waiting for the step-1 review on $STEP1_SHA to complete (timeout ${WAIT_TIMEOUT}s)."
+    while :; do
+      status="$(gh api "repos/$NWO/commits/$STEP1_SHA/check-runs" \
+        --jq '[.check_runs[] | select(.name == "MergeWatch Review")] | first | .status' 2>/dev/null || true)"
+      if [ "$status" = "completed" ]; then
+        echo "  Step-1 review completed after ${waited}s."
+        break
+      fi
+      if [ "$waited" -ge "$WAIT_TIMEOUT" ]; then
+        echo "Step-1 review on $STEP1_SHA still '${status:-absent}' after ${WAIT_TIMEOUT}s." >&2
+        echo "Refusing to push step 2 — it would collapse both phases into one diff." >&2
+        echo "Re-run once the review lands, or set WAIT_FOR_REVIEW=0 to override." >&2
+        exit 1
+      fi
+      sleep "$WAIT_INTERVAL"
+      waited=$((waited + WAIT_INTERVAL))
+    done
+  fi
+
   # -B creates-or-resets the local branch to the remote head and checks it out
   # in one step. This works even when that branch is already the current HEAD —
   # which it is when the step-1 fixture (e.g. 18a) ran immediately before in the
