@@ -151,12 +151,11 @@ E2E-18 ships as two fixture directories sharing one branch (`fixture/18-delta-aw
 
 ```bash
 ./scripts/apply-fixture.sh 18a-introduce-criticals   # opens the PR with security holes
-# wait for first review (orange/red verdict)
-./scripts/apply-fixture.sh 18b-fix-criticals         # pushes fix to same branch, no new PR
+./scripts/apply-fixture.sh 18b-fix-criticals         # waits for 18a's review, then pushes the fix
 # wait for second review (should be green per delta-aware reconciliation)
 ```
 
-`18b` uses the runner's `PUSH_TO_EXISTING_BRANCH` mode — it checks out the existing branch from origin, overlays the fix, and pushes a synchronize commit without opening a new PR.
+`18b` uses the runner's `PUSH_TO_EXISTING_BRANCH` mode — it checks out the existing branch from origin, overlays the fix, and pushes a synchronize commit without opening a new PR. Before pushing, it **blocks until the step-1 review's check run completes** (10s polls, 600s timeout — tune with `WAIT_TIMEOUT`, skip with `WAIT_FOR_REVIEW=0`). Reviews grade the cumulative PR diff, so pushing the fix before the first review lands would collapse both phases into one already-fixed diff and the introduce-phase review would never happen (mergewatch.ai#375).
 
 ## Smoke test (~5 min)
 
