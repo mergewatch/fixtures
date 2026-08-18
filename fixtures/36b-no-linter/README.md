@@ -1,21 +1,36 @@
-# E2E-36b: FP-G — no linter detected (control case)
+# E2E-36b: FP-G — linter-aware style agent (no linter)
 
-Inverse of `36a-linter-present-eslint`: same `src/style-bait.ts` but **no** `eslint.config.mjs`. `detectLinters` returns `[]`, no `LINTER_AWARE_DIRECTIVE` is rendered, and the style agent should emit its full set of findings (lint-equivalent AND code-smell).
+Contract revised per the **mergewatch.ai#376 decision (Option 1)**: this arm is
+no longer a retention control. Lint-equivalent nits are excluded by the style
+prompt's unconditional anti-noise hard list, so **both arms expect identical
+output** — with no linter present the `LINTER_AWARE_DIRECTIVE` placeholder is
+simply stripped and no `[fp-g]` log line appears, but the finding set must not
+differ from 36a's.
 
-## Apply
+No linter config ships in this arm. The `src/` diff is **byte-identical to
+36a's** and plants:
 
-```bash
-./scripts/apply-fixture.sh 36b-no-linter
-```
+- Lint-equivalent nits — mixed missing semicolons, an unused import
+  (`unusedHelper`), value-import-before-type-import ordering. None may surface,
+  even without a linter.
+- **Aliveness control**: the same concrete-impact perf anti-pattern
+  (`withRecomputedTotals` deep-clones every order via
+  `JSON.parse(JSON.stringify(...))` in a `.map` over tens of thousands of
+  orders). This must surface.
 
-## Expected outcomes — no-linter
+## Expected outcomes (identical to 36a by design)
 
-- [ ] No `LINTER_AWARE_DIRECTIVE` in the prompt (placeholder stripped)
-- [ ] No `[fp-g] detected linters:` log line emitted
-- [ ] Style findings (including lint-equivalent ones: missing semicolons / unused import) are emitted as before
-- [ ] **Regression check**: the security / bug / error-handling / test-coverage agent prompts are byte-identical regardless of linter detection (style-only injection)
+- [ ] **No** semicolon / unused-import / formatting / import-order findings —
+      the hard list applies with no linter anywhere in sight
+- [ ] The perf control (per-item deep clone in a hot loop) **does** appear —
+      proves the style agent is alive, not over-suppressed
+- [ ] No `[fp-g] detected linters:` log line; the directive placeholder is
+      stripped from the style prompt (log-only, not gradeable from the PR)
 
 ## Failure modes
 
-- ❌ Style findings disappear despite no linter detected (over-defer — the directive should only fire on detected linters)
-- ❌ A non-style agent's prompt changes in this fixture (FP-G must be style-only)
+- ❌ Lint-equivalent nits appear (the hard list stopped being honored)
+- ❌ The perf control is missing (over-suppression — the agent is dead, not
+  restrained)
+- ❌ Detection false-positive: something outside the repo root (or a
+  `pyproject.toml` without `[tool.ruff]`) triggers the directive
