@@ -1,32 +1,39 @@
-# E2E-36a: FP-G — linter-aware style agent (eslint present)
+# E2E-36a: FP-G — linter-aware style agent (linter present)
 
-`detectLinters` (in `packages/core/src/config/conventions.ts`) runs in parallel with `fetchConventions`. It performs a single root-listing GitHub API call (`repos.getContent` with `path: ''`), matches the returned entries against the marker tables for `eslint` / `biome` / `ruff` / `flake8` / `clippy` / `golangci` / `stylelint`. The detected set is sorted lexicographically and passed into `ReviewPipelineOptions.detectedLinters`, which threads through to `runStyleAgent`. `STYLE_REVIEWER_PROMPT` has a new `LINTER_AWARE_PLACEHOLDER` (`{{LINTERS_DETECTED}}`); `buildLinterAwareDirective` renders a directive telling the model to defer formatting / lint-equivalent findings.
+Contract revised per the **mergewatch.ai#376 decision (Option 1)**: the style
+prompt's anti-noise hard list excludes lint-equivalent nits **unconditionally**
+— semicolons/formatting, import ordering, and anything a linter would enforce
+are never bot findings, linter or no linter. `detectLinters` still injects the
+reinforcing `LINTER_AWARE_DIRECTIVE` when linters are detected, but it is
+reinforcement, not the deciding mechanism. Structural preferences (god
+functions, deep nesting, magic numbers) are also hard-listed and NOT findings.
 
-The directive is **style-agent-specific** — security, bug, error-handling, test-coverage agents are unaffected.
+This arm ships a root `eslint.config.mjs` (linter present). The `src/` diff is
+**byte-identical to 36b's** and plants:
 
-Pair with `36b-no-linter` (same `src/style-bait.ts`, no `eslint.config.mjs`) to verify the inverse.
+- Lint-equivalent nits — mixed missing semicolons, an unused import
+  (`unusedHelper`), value-import-before-type-import ordering. None may surface.
+- **Aliveness control** (in-scope for the narrowed style agent): a
+  concrete-impact perf anti-pattern — `withRecomputedTotals` deep-clones every
+  order via `JSON.parse(JSON.stringify(...))` inside a `.map` over books that
+  the comment notes run to tens of thousands of orders. This must surface.
 
-## Apply
+## Expected outcomes (identical to 36b by design)
 
-```bash
-./scripts/apply-fixture.sh 36a-linter-present-eslint
-```
-
-The overlay adds:
-- `eslint.config.mjs` at the repo root (triggers `detectLinters → ['eslint']`)
-- `src/style-bait.ts` — deeply nested function with missing semicolons + unused import (lint-equivalent AND code-smell bait)
-- `src/unrelated.ts` — the unused-import target
-
-## Expected outcomes — linter-present
-
-- [ ] The style agent prompt (visible in agent logs / dashboard "view full details") includes the `LINTER_AWARE_DIRECTIVE` block listing `eslint`
-- [ ] Agent log includes `[fp-g] detected linters: eslint`
-- [ ] The rendered comment has **no** semicolon / unused-import / formatting-style findings — the style agent deferred to the (assumed) linter
-- [ ] Code-smell findings (god functions, deep nesting, magic numbers) DO still appear — only lint-equivalent ones are deferred
+- [ ] **No** semicolon / unused-import / formatting / import-order findings —
+      the hard list, not linter detection, is the mechanism
+- [ ] The perf control (per-item deep clone in a hot loop) **does** appear —
+      proves the style agent is alive, not over-suppressed
+- [ ] Prompt includes the `LINTER_AWARE_DIRECTIVE` block and the
+      `[fp-g] detected linters: eslint` log line (log-only, not gradeable from
+      the PR)
+- [ ] Regression: security / bug / error-handling / test-coverage prompts
+      byte-identical regardless of linter detection (log-only)
 
 ## Failure modes
 
-- ❌ Linter-present repo still gets *"missing semicolon"* / *"unused import"* findings
-- ❌ Code-smell findings (god functions, nesting) are also suppressed (over-defer — only lint-equivalent should defer)
-- ❌ Detection false-positive: a `.eslintrc.json` in a `node_modules/` subdirectory triggers the directive (the scan must be repo-root only)
-- ❌ A `pyproject.toml` without `[tool.ruff]` triggers `ruff` (regex must require the explicit table header)
+- ❌ Lint-equivalent nits appear (the hard list stopped being honored)
+- ❌ The perf control is missing (over-suppression — the agent is dead, not
+  restrained; this is what separates #376's intended behavior from a defect)
+- ❌ Detection false-positive: a linter config outside the repo root triggers
+  the directive (scan is root-only)

@@ -90,7 +90,7 @@ Rules for authoring or editing fixtures:
 | E2E-33 | `33-diagram-hallucinated-path` | Diagram citing a file NOT in the PR's changed-files set is dropped entirely (FP-D) | stochastic |
 | E2E-34 | `34-warning-verification` | Warning-severity findings flow through W2 verification + gain `verification` tag (FP-E) | |
 | E2E-35 | `35-inline-resolve` | Inline `/resolve` reply persists the finding's key — next review doesn't re-emit (FP-F) | manual resolve + sync |
-| E2E-36 | `36a-linter-present-eslint` + `36b-no-linter` | Linter-aware style agent defers lint-equivalent findings when eslint is present (FP-G) | two fixtures |
+| E2E-36 | `36a-linter-present-eslint` + `36b-no-linter` | Lint-equivalent nits are NEVER findings — anti-noise hard list, linter or no linter (#376 Option 1); both arms identical, with an in-scope perf control proving the style agent is alive (FP-G) | two fixtures |
 | E2E-37 | `37-fp-record-storage` | FindingDispositionRecord rows written on every surfacing, dispute, resolve (FB-A) | DB inspection |
 | E2E-38 | `38-quiet-drop` | Finding gone without code change → `silentDropCount` increments (FB-B) | manual unrelated-file push |
 | E2E-39 | `39-inline-reactions` | 👎/🤔 increments `disputeCount`; 👍/❤️/🚀 increments `agreementCount` on inline (FB-C) | manual reactions |
