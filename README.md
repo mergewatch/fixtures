@@ -7,6 +7,9 @@ The authoritative test procedure lives upstream: [`mergewatch.ai/e2e/RUNBOOK.md`
 ## Layout
 
 ```
+.mergewatch.yml               # baseline model pin: suite reviews run on Sonnet 4.5
+                              # (fixtures#585 — keeps suite load off Opus 4.6's daily
+                              # token quota; keep this file model:-only)
 src/                          # baseline source tree fixtures mutate
 fixtures/<NN-name>/           # one directory per E2E-NN card from the runbook
   overlay/                    # files copied on top of the baseline working tree
