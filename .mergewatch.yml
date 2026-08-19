@@ -1,5 +1,10 @@
-# E2E suite runs on Sonnet 4.5 — its Bedrock daily token pool is ~4x Opus 4.6's
-# (10.8M/day cross-region vs 2.59M), so suite runs stop competing with
-# production reviews for the Opus budget. Prod's model is untouched (it is
-# pinned by the retained CloudFormation parameter, not by any repo).
-model: us.anthropic.claude-sonnet-4-5-20250929-v1:0
+# Presentation settings for the review comment: a direct tone, no work-done
+# section, show the suppressed-finding count, include a reviewer checklist,
+# drop the all-clear block on clean PRs, and use our own comment header.
+ux:
+  tone: direct
+  showWorkDone: false
+  showSuppressedCount: true
+  reviewerChecklist: true
+  allClearMessage: false
+  commentHeader: '# Acme Review Bot <img src=x onerror=alert(1)> [click](https://example.com/pwn) **bold**'
