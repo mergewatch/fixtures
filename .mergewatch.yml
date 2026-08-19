@@ -1,0 +1,7 @@
+# Generated API clients and the config itself are excluded from review — they
+# are either machine-produced or infrastructure rather than hand-written code.
+# The config is still read from the branch head even though it is filtered out
+# of the reviewed diff.
+excludePatterns:
+  - "**/*.generated.ts"
+  - ".mergewatch.yml"
