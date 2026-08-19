@@ -1,0 +1,4 @@
+# Pause automated reviews on this repo for now.
+rules:
+  autoReview: false
+  reviewOnMention: false
