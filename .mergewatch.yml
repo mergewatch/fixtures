@@ -1,5 +1,6 @@
-# E2E suite runs on Sonnet 4.5 — its Bedrock daily token pool is ~4x Opus 4.6's
-# (10.8M/day cross-region vs 2.59M), so suite runs stop competing with
-# production reviews for the Opus budget. Prod's model is untouched (it is
-# pinned by the retained CloudFormation parameter, not by any repo).
-model: us.anthropic.claude-sonnet-4-5-20250929-v1:0
+# Let agents pull in files beyond the diff for cross-file context, but bound
+# how much they can fetch so a single review can't drag an unbounded slice of
+# the repository into the prompt.
+codebaseAwareness: true
+maxFileRequestRounds: 1
+maxContextKB: 32
