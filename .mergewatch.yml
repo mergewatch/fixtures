@@ -1,0 +1,3 @@
+# Keep automated reviews focused on small PRs.
+rules:
+  maxFiles: 3
