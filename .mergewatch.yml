@@ -1,0 +1,3 @@
+# Generated code is owned by the codegen pipeline — leave it out of reviews.
+excludePatterns:
+  - "**/*.generated.ts"
