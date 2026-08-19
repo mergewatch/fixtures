@@ -213,7 +213,10 @@ fi
 # grades a missing prerequisite as a product regression (fixtures#469).
 if [ -n "$PREREQ_CHECK" ]; then
   echo "→ Checking prerequisite: $PREREQ_CHECK"
-  if ! (cd "$REPO_ROOT" && eval "$PREREQ_CHECK"); then
+  # Word-split into command + args without eval: no metacharacter, pipeline,
+  # or command-substitution interpretation of the meta.env-controlled value.
+  read -ra PREREQ_CMD <<< "$PREREQ_CHECK"
+  if ! (cd "$REPO_ROOT" && "${PREREQ_CMD[@]}"); then
     echo "Prerequisite check failed for $NAME — skipping apply." >&2
     echo "  $PREREQ_CHECK" >&2
     exit 3

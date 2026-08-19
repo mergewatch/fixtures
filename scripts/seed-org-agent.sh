@@ -52,9 +52,15 @@ fi
 
 # --- verify mode ------------------------------------------------------------
 if [ "$MODE" = "verify" ]; then
-  AGENTS="$(aws dynamodb get-item --table-name "$TABLE" \
+  # Distinguish "row absent" (exit 3 → skipped-missing-prereq) from an AWS
+  # failure like expired credentials (exit 1 → real error), so an auth problem
+  # is never silently recorded as a missing prerequisite.
+  if ! AGENTS="$(aws dynamodb get-item --table-name "$TABLE" \
     --key "{\"installationId\":{\"S\":\"$INSTALLATION_ID\"},\"repoFullName\":{\"S\":\"#AGENTS\"}}" \
-    --output json 2>/dev/null || echo '{}')"
+    --output json)"; then
+    echo "✗ DynamoDB get-item failed (credentials/permissions?) — cannot verify prerequisite." >&2
+    exit 1
+  fi
   if echo "$AGENTS" | jq -e '
       .Item.agents.L // [] | map(.M) |
       any(.name.S == "no-todo" and .enabled.BOOL == true)' >/dev/null; then
