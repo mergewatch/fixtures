@@ -6,9 +6,23 @@ At review time the runtime selects enabled agents that are in scope and match ta
 
 ## Apply
 
-**Configure the org agent first** — this fixture is inert without it.
+**Configure the org agent first** — this fixture is inert without it
+(fixtures#469: the 2026-08-19 run degraded silently when the row was absent).
+Seed it from the CLI (writes the `#AGENTS` sentinel row exactly as the
+dashboard would):
 
-1. Settings → Custom Agents → Add agent. Name `no-todo`, prompt *"Flag any new TODO comment"*, severity `critical`, enforcement **advisory**, scope **All repositories**.
+```bash
+scripts/seed-org-agent.sh            # no-todo, critical, advisory, all repos
+```
+
+or via the dashboard: Settings → Custom Agents → Add agent, name `no-todo`,
+prompt *"Flag any new TODO comment"*, severity `critical`, enforcement
+**advisory**, scope **All repositories**.
+
+The fixture's `PREREQ_CHECK` runs `scripts/seed-org-agent.sh --verify` before
+applying; when the row is missing, `run-suite.sh` records the fixture as
+`skipped-missing-prereq` instead of opening an inert PR.
+
 2. Then:
 
 ```bash
