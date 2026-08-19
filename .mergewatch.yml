@@ -1,0 +1,5 @@
+# Review every PR automatically on open; disable mention-triggered re-reviews
+# to keep comment threads from kicking off duplicate runs.
+rules:
+  autoReview: true
+  reviewOnMention: false
