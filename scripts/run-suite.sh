@@ -50,7 +50,7 @@ fi
 TOTAL="${#FIXTURES[@]}"
 echo "→ Running suite: $TOTAL fixture(s)."
 
-PASS=(); FAIL=()
+PASS=(); FAIL=(); PREREQ_SKIPPED=()
 ENTRIES=()
 i=0
 for name in "${FIXTURES[@]}"; do
@@ -63,9 +63,19 @@ for name in "${FIXTURES[@]}"; do
     PASS+=("$name")
     applied="ok"
   else
-    echo "✗ $name failed (exit $?)" >&2
-    FAIL+=("$name")
-    applied="error"
+    rc=$?
+    if [ "$rc" -eq 3 ]; then
+      # Distinct exit from apply-fixture's PREREQ_CHECK gate — an out-of-band
+      # prerequisite (e.g. E2E-68's #AGENTS row) is missing. Honest manifest
+      # state so /verify-suite doesn't grade it as a product failure.
+      echo "⊘ $name skipped — missing prerequisite." >&2
+      PREREQ_SKIPPED+=("$name")
+      applied="skipped-missing-prereq"
+    else
+      echo "✗ $name failed (exit $rc)" >&2
+      FAIL+=("$name")
+      applied="error"
+    fi
   fi
 
   # Resolve the PR this fixture maps to (manual/reuse fixtures may have none).
@@ -101,7 +111,10 @@ echo "→ Manifest written: $MANIFEST"
 
 echo ""
 echo "══════════════════════════════════════════════════════════"
-echo "Suite complete: ${#PASS[@]} applied, ${#FAIL[@]} failed."
+echo "Suite complete: ${#PASS[@]} applied, ${#FAIL[@]} failed, ${#PREREQ_SKIPPED[@]} skipped (missing prereq)."
+if [ "${#PREREQ_SKIPPED[@]}" -gt 0 ]; then
+  printf '  ⊘ %s\n' "${PREREQ_SKIPPED[@]}"
+fi
 if [ "${#FAIL[@]}" -gt 0 ]; then
   printf '  ✗ %s\n' "${FAIL[@]}"
   exit 1

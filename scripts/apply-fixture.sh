@@ -53,7 +53,7 @@ fi
 # Comments (#) and blank lines are ignored.
 BRANCH=""; TITLE=""; BODY=""; DRAFT="false"
 SKIP_APPLY="false"; MANUAL_ONLY="false"; REUSES=""; POST_OPEN_HINT=""
-PUSH_TO_EXISTING_BRANCH=""; COMMIT_MESSAGE=""; LABELS=""
+PUSH_TO_EXISTING_BRANCH=""; COMMIT_MESSAGE=""; LABELS=""; PREREQ_CHECK=""
 while IFS='=' read -r key value; do
   # strip trailing \r in case of CRLF
   value="${value%$'\r'}"
@@ -69,6 +69,7 @@ while IFS='=' read -r key value; do
     PUSH_TO_EXISTING_BRANCH) PUSH_TO_EXISTING_BRANCH="$value" ;;
     COMMIT_MESSAGE) COMMIT_MESSAGE="$value" ;;
     LABELS) LABELS="$value" ;;
+    PREREQ_CHECK) PREREQ_CHECK="$value" ;;
     "" | \#*) ;;
   esac
 done < <(grep -v '^[[:space:]]*#' "$META" | grep '=')
@@ -204,6 +205,22 @@ fi
 if ! git diff --quiet || ! git diff --cached --quiet; then
   echo "Working tree has uncommitted changes. Commit, stash, or run scripts/bootstrap.sh." >&2
   exit 1
+fi
+
+# Out-of-band prerequisite gate (e.g. E2E-68's dashboard-side #AGENTS row).
+# A failed check exits 3 — a distinct code run-suite.sh records as
+# skipped-missing-prereq instead of an apply failure, so /verify-suite never
+# grades a missing prerequisite as a product regression (fixtures#469).
+if [ -n "$PREREQ_CHECK" ]; then
+  echo "→ Checking prerequisite: $PREREQ_CHECK"
+  # Word-split into command + args without eval: no metacharacter, pipeline,
+  # or command-substitution interpretation of the meta.env-controlled value.
+  read -ra PREREQ_CMD <<< "$PREREQ_CHECK"
+  if ! (cd "$REPO_ROOT" && "${PREREQ_CMD[@]}"); then
+    echo "Prerequisite check failed for $NAME — skipping apply." >&2
+    echo "  $PREREQ_CHECK" >&2
+    exit 3
+  fi
 fi
 
 # --- cache overlay before reset --------------------------------------------

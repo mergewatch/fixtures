@@ -16,7 +16,10 @@ cat .e2e/last-run.json
 ```
 
 This maps each fixture → its PR number (`pr: null` for manual/reuse fixtures
-with no PR of their own). If the manifest is missing, fall back to discovering
+with no PR of their own). An entry with `applied: "skipped-missing-prereq"`
+means an out-of-band prerequisite (e.g. E2E-68's `#AGENTS` row) was absent and
+the fixture never applied — grade it SKIP with that reason; never treat it as
+a product failure. If the manifest is missing, fall back to discovering
 open fixture PRs with `gh pr list --state open --json number,headRefName,title`
 and matching `headRefName` to `fixtures/*/meta.env` BRANCH values. Report and
 stop if neither yields fixtures to grade.
