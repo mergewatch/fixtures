@@ -1,3 +1,8 @@
+# Keep the suite on Sonnet 4.5 (fixtures#585). This overlay REPLACES the
+# repo-root .mergewatch.yml, so without repeating the pin here the fixture
+# falls back to the deploy default (Opus 4.6) whose daily token quota the
+# suite exhausts — those fixtures then dead-letter while the rest pass.
+model: us.anthropic.claude-sonnet-4-5-20250929-v1:0
 # Only surface warnings and above, and cap how many findings land on a PR so
 # the summary stays readable. When more are found than the cap allows, the
 # most severe are kept and the reader is told some were withheld.
