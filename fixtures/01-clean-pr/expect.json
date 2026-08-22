@@ -1,0 +1,12 @@
+{
+  "_source": "README Expected outcomes — E2E-01",
+  "comment": "present",
+  "score": 5,
+  "findings": { "critical": 0, "warning": 0 },
+  "check": "success",
+  "reviewState": "APPROVED",
+  "reviewBody": "empty",
+  "mustContain": ["All clear!"],
+  "mustNotContain": ["Requires your attention"],
+  "reactions": { "present": ["THUMBS_UP"], "absent": ["EYES"] }
+}

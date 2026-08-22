@@ -1,0 +1,10 @@
+{
+  "_source": "README Expected outcomes — E2E-28b (verdict lives in the comment, not the review body)",
+  "comment": "present",
+  "score": { "min": 1, "max": 2 },
+  "findings": { "critical": { "min": 1 } },
+  "check": "failure",
+  "reviewState": "CHANGES_REQUESTED",
+  "inlineComments": { "min": 1 },
+  "mustContain": ["Requires your attention"]
+}

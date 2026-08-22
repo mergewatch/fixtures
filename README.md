@@ -102,6 +102,50 @@ deliberate behaviors there:
 
 Always `--dry-run` first. A full run opens ~98 real PRs and spends real money.
 
+## Grading a run (#416)
+
+Two layers, deliberately:
+
+```bash
+node scripts/grade-run.mjs              # deterministic — no model, exits 1 on regression
+node scripts/grade-run.mjs --stage dev  # grade the dev review instead
+node scripts/grade-run.mjs --compare    # grade both stages, report divergence
+node scripts/grade-run.mjs --json       # machine-readable
+```
+
+`grade-run.mjs` reads `.e2e/last-run.json`, fetches each PR, and evaluates that
+fixture's `expect.json`. It asserts the things that are actually assertable:
+
+| Field | Checks |
+|---|---|
+| `check` | check-run conclusion, or `"none"` for the silent-skip path |
+| `checkTitleMatches` | regex against the check title (e.g. `"skip"`) |
+| `score` | merge score — exact, or `{min,max}` |
+| `findings` | per-severity counts — exact, or `{min,max}` |
+| `reviewState` | `APPROVED` / `CHANGES_REQUESTED` / `none` |
+| `reviewBody` | `"empty"` — pins the #132 regression |
+| `comment` | `"present"` / `"absent"` |
+| `mustContain` / `mustNotContain` / `mustMatch` | comment body |
+| `inlineComments` | count of this stage's inline findings |
+| `reactions` | `present` / `absent` (e.g. 👀 removed after completion) |
+
+**A fixture with no `expect.json` is reported `UNGRADED`, never `PASS`.**
+Counting an unasserted fixture as passing would make this layer worthless.
+`/verify-suite` still grades those against the prose README, and still covers
+the qualitative outcomes assertions cannot express ("findings quality unchanged
+or better"). The two layers are complements, not alternatives.
+
+Exit codes: `0` clean, `1` a regression or a PR that could not be fetched
+(unverified is not the same as fine), `2` no manifest.
+
+### Identifying the App
+
+The grader matches reviews by **App login**, not by a "is this a bot" heuristic:
+`gh pr view --json reviews` returns `author.is_bot: null` and a bare login
+(`mergewatch`, not `mergewatch[bot]`), so every bot-detection heuristic silently
+matches nothing and reports a review that plainly exists as missing. Override
+with `--app-login` / `--dev-app-login` if your deployment's App slugs differ.
+
 ## Fixture index
 
 | ID | Name | Behavior | Manual? |
