@@ -77,3 +77,22 @@ in `mergewatch/mergewatch.ai` per regression.
 Summarize: which fixtures were missing and created, the apply pass/fail counts,
 and that `/verify-suite` should grade behavior next. Remind that
 `scripts/reset-env.sh` (or `/reset-env`) tears the run back down.
+
+## Keep TAGS and MODE in step (#416)
+
+Every fixture's `meta.env` carries `TAGS=` (what it covers) and `MODE=` (how it
+is verified). When authoring a new fixture, set both — a fixture with no `TAGS`
+is invisible to `--tag` and to `--changed-files` selection, so it silently stops
+being part of impacted runs while still looking present in the index.
+
+Then check the reverse direction: if the new fixture covers an area no path in
+`e2e/impact-map.yml` maps to, add the mapping. A product path that maps to
+nothing falls through to the full suite — safe, but it defeats the point of
+selective runs.
+
+Verify with:
+
+```bash
+scripts/select-fixtures.sh --tag <new-tag>      # exits 2 if the tag matches nothing
+scripts/run-suite.sh --changed-files <paths> --dry-run --explain
+```

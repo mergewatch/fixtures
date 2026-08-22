@@ -10,6 +10,15 @@
 #   scripts/run-suite.sh                 # apply every fixture, sorted
 #   scripts/run-suite.sh 21-noop-suggestion 22-claim-aware-verify
 #
+#   # Selective runs (#416) — see scripts/select-fixtures.sh
+#   scripts/run-suite.sh --tag agents --tag output
+#   scripts/run-suite.sh --mode dynamo
+#   git -C ../mergewatch.ai diff --name-only main... \
+#     | scripts/run-suite.sh --changed-files -
+#
+# --dry-run prints the selection and exits without opening any PR. Worth doing
+# first: a full run is ~98 PRs and real LLM spend.
+#
 # Env:
 #   SLEEP=<seconds>   pause between fixtures so MergeWatch can review (default 0)
 #
@@ -37,14 +46,48 @@ fixture_branch() {
   grep -E '^BRANCH=' "$meta" | head -1 | cut -d= -f2- | tr -d '\r'
 }
 
-if [ "$#" -gt 0 ]; then
-  FIXTURES=("$@")
+# --- selection (#416) -------------------------------------------------------
+# Flags delegate to select-fixtures.sh; bare positional names still work.
+SELECT_ARGS=(); POSITIONAL=(); DRY_RUN=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --tag|--mode|--changed-files) SELECT_ARGS+=("$1" "$2"); shift 2 ;;
+    --dry-run)                    DRY_RUN=1; shift ;;
+    --explain)                    SELECT_ARGS+=("--explain"); shift ;;
+    -*) echo "unknown flag: $1" >&2; exit 2 ;;
+    *)  POSITIONAL+=("$1"); shift ;;
+  esac
+done
+
+FIXTURES=()
+if [ "${#SELECT_ARGS[@]}" -gt 0 ]; then
+  if [ "${#POSITIONAL[@]}" -gt 0 ]; then
+    echo "Pass either fixture names or selection flags, not both." >&2
+    exit 2
+  fi
+  while IFS= read -r fx; do
+    [ -n "$fx" ] && FIXTURES+=("$fx")
+  done < <("$REPO_ROOT/scripts/select-fixtures.sh" "${SELECT_ARGS[@]}") || exit $?
+  # An empty selection is a real answer ("nothing relevant changed"), not a
+  # reason to fall back to the full suite — falling back would quietly turn a
+  # docs-only PR into a 98-fixture run.
+  if [ "${#FIXTURES[@]}" -eq 0 ]; then
+    echo "→ No fixtures match the selection — nothing to run."
+    exit 0
+  fi
+elif [ "${#POSITIONAL[@]}" -gt 0 ]; then
+  FIXTURES=("${POSITIONAL[@]}")
 else
   # read into an array without mapfile (bash 4+) so this runs on macOS bash 3.2
-  FIXTURES=()
   while IFS= read -r fx; do
     [ -n "$fx" ] && FIXTURES+=("$fx")
   done < <(ls -1 "$REPO_ROOT/fixtures" | sort)
+fi
+
+if [ "$DRY_RUN" -eq 1 ]; then
+  echo "→ Selection (${#FIXTURES[@]} fixture(s)); --dry-run, nothing applied:"
+  printf '    %s\n' "${FIXTURES[@]}"
+  exit 0
 fi
 
 TOTAL="${#FIXTURES[@]}"
