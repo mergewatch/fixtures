@@ -1,0 +1,10 @@
+{
+  "_source": "README Expected outcomes — E2E-02",
+  "comment": "present",
+  "score": 5,
+  "findings": { "critical": 0, "warning": 0, "info": { "min": 1 } },
+  "check": "success",
+  "reviewState": "APPROVED",
+  "mustContain": ["All clear!"],
+  "mustNotContain": ["Multiple warnings"]
+}

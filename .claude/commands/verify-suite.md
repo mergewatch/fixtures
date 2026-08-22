@@ -9,6 +9,32 @@ and file a GitHub issue upstream for every regression.
 
 Upstream repo for issues: `mergewatch/mergewatch.ai`.
 
+## 0. Run the deterministic grader first (#416)
+
+```bash
+node scripts/grade-run.mjs --json
+```
+
+This asserts everything machine-checkable — check conclusion, merge score,
+per-severity finding counts, review state and body, comment content, inline
+counts, reactions — with no model involved. Take its verdicts as given:
+
+- **PASS / FAIL** — already decided. Do not re-litigate them; report FAILs as
+  regressions with the assertion text the grader printed.
+- **UNGRADED** — no `expect.json`. These are yours to grade against the prose
+  README, per the steps below.
+- **SKIP / ERROR** — no PR, missing prerequisite, or the PR could not be
+  fetched. Never grade these as product failures.
+
+Your judgement is for what assertions cannot express — "findings quality
+unchanged or better", whether an inline anchor landed on a sensible line,
+whether a diagram is coherent. Spending it re-checking a check-run conclusion
+is waste, and disagreeing with the grader on a deterministic field means one of
+you has a bug worth reporting rather than papering over.
+
+When a fixture you graded FAIL has no `expect.json`, consider proposing one in
+the regression issue — that is how this layer grows.
+
 ## 1. Load the run manifest
 
 ```bash

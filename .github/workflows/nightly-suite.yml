@@ -1,0 +1,107 @@
+# Nightly E2E suite (#416, stage 3).
+#
+# Applies the fixture suite, waits for MergeWatch to review each PR, grades the
+# run deterministically, and tears down. Manual dispatch accepts a tag or mode
+# so an impacted subset can be run on demand without waiting for the night.
+#
+# This opens REAL pull requests and spends REAL LLM budget — a full run is ~98
+# PRs. That is why the schedule is nightly rather than per-push, and why the
+# dispatch inputs exist.
+name: Nightly E2E suite
+
+on:
+  schedule:
+    # 07:00 UTC — after the US evening, before the working day.
+    - cron: '0 7 * * *'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Only fixtures with this tag (e.g. agents, billing, oss)'
+        required: false
+        type: string
+      mode:
+        description: 'Only fixtures with this MODE (pr, dynamo, dashboard, mcp)'
+        required: false
+        type: string
+      dry_run:
+        description: 'Print the selection and stop — opens no PRs'
+        required: false
+        default: false
+        type: boolean
+
+# Never let two suite runs overlap: they share fixture branches and would
+# clobber each other's PRs.
+concurrency:
+  group: e2e-suite
+  cancel-in-progress: false
+
+jobs:
+  suite:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Resolve selection
+        id: select
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ARGS=()
+          [ -n "${{ inputs.tag }}" ]  && ARGS+=(--tag "${{ inputs.tag }}")
+          [ -n "${{ inputs.mode }}" ] && ARGS+=(--mode "${{ inputs.mode }}")
+          echo "args=${ARGS[*]}" >> "$GITHUB_OUTPUT"
+          scripts/select-fixtures.sh "${ARGS[@]}" | tee /tmp/selection.txt
+          echo "count=$(wc -l < /tmp/selection.txt)" >> "$GITHUB_OUTPUT"
+
+      - name: Dry run
+        if: ${{ inputs.dry_run }}
+        run: |
+          echo "Selection (${{ steps.select.outputs.count }} fixtures), nothing applied:"
+          cat /tmp/selection.txt
+
+      - name: Apply suite
+        if: ${{ !inputs.dry_run }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Pace the run so MergeWatch is not reviewing 98 PRs at once — the
+          # review agent's own concurrency cap would throttle and park them.
+          SLEEP: '20'
+        run: scripts/run-suite.sh ${{ steps.select.outputs.args }}
+
+      - name: Wait for reviews to land
+        if: ${{ !inputs.dry_run }}
+        # Reviews are asynchronous (webhook → SQS → agent). The suite finishes
+        # applying long before the last review posts.
+        run: sleep 300
+
+      - name: Grade deterministically
+        if: ${{ !inputs.dry_run }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/grade-run.mjs
+
+      - name: Upload run artifacts
+        if: ${{ always() && !inputs.dry_run }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-run
+          path: .e2e/
+          if-no-files-found: warn
+
+      - name: Tear down
+        # Always: a failed grade must still close the PRs it opened, or the next
+        # run starts against a repo full of stale fixture branches.
+        if: ${{ always() && !inputs.dry_run }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: scripts/reset-env.sh || echo "teardown failed — check for stale fixture branches"
