@@ -54,6 +54,54 @@ Rules for authoring or editing fixtures:
 - The fixture ↔ PR mapping is the **branch name** (`fixture/NN-…`), which the
   runner and `/verify-suite` key on.
 
+## Selective runs (#416)
+
+Every fixture's `meta.env` carries two selection fields:
+
+- **`TAGS=`** — what the fixture covers (`agents`, `billing`, `oss`, `skip`,
+  `output`, `dashboard`, `rollup`, `mcp`, …). Multiple, comma-separated.
+- **`MODE=`** — *how* it is verified, which is what a grader has to dispatch on:
+
+  | MODE | Count | Verified by |
+  |---|---|---|
+  | `pr` | 66 | Open a PR, read the review comment and check run |
+  | `dynamo` | 14 | Assert table state directly |
+  | `dashboard` | 13 | Browser, or the API feeding the chart |
+  | `mcp` | 4 | MCP client calls |
+  | `checks-api` | 1 | GitHub checks API (`check-runs/:id/rerequest`) |
+
+`MODE` is the automation roadmap for the 36 fixtures still marked
+`MANUAL_ONLY`: 14 are plain DynamoDB assertions, 13 need a dashboard check,
+and **4 are already `MODE=pr` — automatable today, just never wired**
+(`47-suggest-rule`, `48-known-fp-injection`, `58-engagement-resolve`,
+`61-helpful-prompt`).
+
+```bash
+# See what a selection resolves to — costs nothing
+scripts/select-fixtures.sh --tag agents
+scripts/run-suite.sh --tag billing --dry-run
+
+# Run a subset
+scripts/run-suite.sh --tag agents --tag output
+scripts/run-suite.sh --mode dynamo
+
+# Run only what a product change could have affected
+git -C ../mergewatch.ai diff --name-only main... \
+  | scripts/run-suite.sh --changed-files -
+```
+
+`--changed-files` resolves paths to tags via `e2e/impact-map.yml`. Two
+deliberate behaviors there:
+
+- **A path matching no rule runs the whole suite**, and `--explain` prints
+  which path forced it. Silent under-selection is the failure that matters —
+  a missed regression costs far more than a slow run.
+- **An empty selection means "nothing relevant changed"** and runs nothing,
+  rather than falling back to everything. Otherwise a docs-only PR would
+  quietly become a 98-fixture run.
+
+Always `--dry-run` first. A full run opens ~98 real PRs and spends real money.
+
 ## Fixture index
 
 | ID | Name | Behavior | Manual? |

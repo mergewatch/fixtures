@@ -1,0 +1,72 @@
+# Path → tag map for `run-suite.sh --changed-files` (#416).
+#
+# Turns a set of changed paths in mergewatch/mergewatch.ai into the set of
+# fixture tags worth re-running, so a prompt tweak runs ~11 fixtures instead
+# of all 98.
+#
+# ── Rules ────────────────────────────────────────────────────────────────────
+#   * One `glob: [tags]` entry per line. First match wins, top to bottom, so
+#     put specific paths above the directory globs that would also match them.
+#   * The tag `ALL` means "run the whole suite".
+#   * A changed path matching NOTHING here also resolves to `ALL`, and the run
+#     prints which paths forced it. Silent under-selection is the failure mode
+#     that matters: a missed regression costs far more than a slow run, so the
+#     default is deliberately pessimistic.
+#
+# When you add a fixture tag, add the paths that should trigger it here too —
+# an untagged path is not an error, it just means the full suite runs.
+
+# ── Agents, prompts, verification ────────────────────────────────────────────
+packages/core/src/agents/prompts.ts:            [agents, prompts]
+packages/core/src/agents/reviewer.ts:           [agents, verification, dedup, delta]
+packages/core/src/agents/inline-reply.ts:       [inline, engagement]
+packages/core/src/agents/**:                    [agents]
+
+# ── Trigger + skip decisions ─────────────────────────────────────────────────
+packages/core/src/skip-logic.ts:                [skip, triggers]
+packages/core/src/config/**:                    [config, skip, triggers]
+packages/core/src/org-agents.ts:                [org-agents, config]
+
+# ── Comment rendering and UX ─────────────────────────────────────────────────
+packages/core/src/comment-formatter.ts:         [output, ux, diagram]
+packages/core/src/github/client.ts:             [inline, output, checks, review-core]
+
+# ── Accuracy / false-positive loop ───────────────────────────────────────────
+packages/core/src/insights/**:                  [fp, rollup, storage]
+
+# ── Billing, OSS, cost ───────────────────────────────────────────────────────
+packages/billing/**:                            [billing, oss, cost]
+packages/core/src/llm/pricing.ts:               [cost, pricing]
+
+# ── MCP ──────────────────────────────────────────────────────────────────────
+packages/mcp/**:                                [mcp]
+
+# ── Dashboard ────────────────────────────────────────────────────────────────
+packages/dashboard/**:                          [dashboard]
+
+# ── Storage ──────────────────────────────────────────────────────────────────
+packages/storage-dynamo/**:                     [storage, rollup, ttm]
+packages/storage-postgres/**:                   [storage, selfhosted]
+
+# ── Whole-suite triggers ─────────────────────────────────────────────────────
+# The model layer changes what every agent produces, so a provider or model
+# change is never a subset run. This is what #414 (the Sonnet 4.5 swap) needed
+# and did not have.
+packages/llm-*/**:                              [ALL]
+packages/core/src/agents/reviewer.test.ts:      []
+infra/**:                                       [ALL]
+packages/lambda/**:                             [ALL]
+packages/server/**:                             [ALL]
+
+# ── Explicitly irrelevant — never trigger a run ──────────────────────────────
+# NOTE: these are shell `case` patterns, not gitignore globs. `*` spans `/`,
+# so `**/*.md` still requires a slash and does NOT match a top-level README.md.
+# Both forms are listed deliberately — without the bare `*.md`, a docs-only
+# change falls through as unmapped and runs the entire suite.
+docs/**:                                        []
+docs-site/**:                                   []
+e2e/**:                                         []
+**/*.md:                                        []
+*.md:                                           []
+LICENSE:                                        []
+.github/**:                                     []
