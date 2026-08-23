@@ -1,0 +1,6 @@
+{
+  "_source": "README Expected outcomes — E2E-75b (boundary is inclusive: exactly maxFiles still reviews). A summary comment is the proof it was not skipped — a skip posts none. Score is left wide because the README only says a parseInt/NaN concern may surface, not that it must.",
+  "comment": "present",
+  "score": { "min": 1, "max": 5 },
+  "mustNotContain": ["Review skipped"]
+}
