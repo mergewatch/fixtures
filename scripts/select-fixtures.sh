@@ -6,8 +6,15 @@
 #
 #   scripts/select-fixtures.sh --tag agents
 #   scripts/select-fixtures.sh --mode dynamo
+#   scripts/select-fixtures.sh --tag correctness --automated
 #   git -C ../mergewatch.ai diff --name-only main... \
 #     | scripts/select-fixtures.sh --changed-files -
+#
+# --automated / --manual filter on MANUAL_ONLY and AND with the other filters,
+# so `--tag correctness --automated` is the runnable half of the gate. They are
+# derived from MANUAL_ONLY rather than being tags of their own: a fixture's
+# automatability is already recorded in meta.env, and a second copy in TAGS
+# would be free to drift from it.
 #
 # Exits 2 on an unknown tag or mode — a filter that silently matches nothing
 # would look identical to "nothing was impacted", which is the one answer this
@@ -18,13 +25,15 @@ REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
 MAP="$REPO_ROOT/e2e/impact-map.yml"
 
-TAGS=(); MODES=(); CHANGED=""; EXPLAIN="${EXPLAIN:-0}"
+TAGS=(); MODES=(); CHANGED=""; EXPLAIN="${EXPLAIN:-0}"; AUTOMATION=""
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --tag)           TAGS+=("$2"); shift 2 ;;
     --mode)          MODES+=("$2"); shift 2 ;;
     --changed-files) CHANGED="$2"; shift 2 ;;
+    --automated)     AUTOMATION="automated"; shift ;;
+    --manual)        AUTOMATION="manual"; shift ;;
     --explain)       EXPLAIN=1; shift ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
@@ -116,8 +125,21 @@ if [ -n "$CHANGED" ]; then
 fi
 
 # --- apply filters ----------------------------------------------------------
+is_manual() { [ "$(fixture_field "$1" MANUAL_ONLY)" = "true" ]; }
+
+# Keeps or drops one fixture by --automated / --manual. No filter set keeps all.
+automation_ok() {
+  case "$AUTOMATION" in
+    "")        return 0 ;;
+    automated) is_manual "$1" && return 1 || return 0 ;;
+    manual)    is_manual "$1" && return 0 || return 1 ;;
+  esac
+}
+
 if [ "${#TAGS[@]}" -eq 0 ] && [ "${#MODES[@]}" -eq 0 ]; then
-  printf '%s\n' "${ALL_FIXTURES[@]}"
+  for f in "${ALL_FIXTURES[@]}"; do
+    automation_ok "$f" && echo "$f"
+  done
   exit 0
 fi
 
@@ -137,5 +159,5 @@ for f in "${ALL_FIXTURES[@]}"; do
       [ "$fmode" = "$m" ] && { keep=1; break; }
     done
   fi
-  [ "$keep" -eq 1 ] && echo "$f"
+  [ "$keep" -eq 1 ] && automation_ok "$f" && echo "$f"
 done
