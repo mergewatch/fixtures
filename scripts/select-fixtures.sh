@@ -113,7 +113,11 @@ resolve_changed_tags() {
 if [ -n "$CHANGED" ]; then
   RESOLVED="$(resolve_changed_tags "$CHANGED")"
   if echo "$RESOLVED" | grep -qw ALL; then
-    printf '%s\n' "${ALL_FIXTURES[@]}"
+    # Still honour --automated/--manual: "everything is impacted" is a statement
+    # about scope, not about which fixtures can actually run unattended.
+    for f in "${ALL_FIXTURES[@]}"; do
+      automation_ok "$f" && echo "$f"
+    done
     exit 0
   fi
   # No tags at all means nothing relevant changed — an empty selection here is
