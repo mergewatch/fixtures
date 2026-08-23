@@ -13,6 +13,7 @@
 #   # Selective runs (#416) — see scripts/select-fixtures.sh
 #   scripts/run-suite.sh --tag agents --tag output
 #   scripts/run-suite.sh --mode dynamo
+#   scripts/run-suite.sh --tag correctness --automated   # the runnable gate
 #   git -C ../mergewatch.ai diff --name-only main... \
 #     | scripts/run-suite.sh --changed-files -
 #
@@ -53,6 +54,7 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --tag|--mode|--changed-files) SELECT_ARGS+=("$1" "$2"); shift 2 ;;
     --dry-run)                    DRY_RUN=1; shift ;;
+    --automated|--manual)         SELECT_ARGS+=("$1"); shift ;;
     --explain)                    SELECT_ARGS+=("--explain"); shift ;;
     -*) echo "unknown flag: $1" >&2; exit 2 ;;
     *)  POSITIONAL+=("$1"); shift ;;
