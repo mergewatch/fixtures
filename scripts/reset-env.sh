@@ -2,8 +2,8 @@
 # Reset the mergewatch-fixtures E2E environment back to a clean baseline.
 #
 # Full teardown:
-#   1. close every open PR (and delete its remote branch via gh)
-#   2. delete every remote branch except main
+#   1. close every open `fixture/*` PR (and delete its remote branch via gh)
+#   2. delete every remote `fixture/*` branch
 #   3. delete every local branch except main
 #   4. return to a clean main reset to the e2e-baseline tag
 #   5. prune stale remote-tracking refs
@@ -39,14 +39,23 @@ echo "→ Resetting environment for $NWO"
 # one --limit, and a teardown that silently leaves some open is a broken reset.
 # Each closed PR drops out of the next page, so we converge to zero; the
 # zero-progress guard stops us if a PR can't be closed (e.g. permissions).
-echo "→ Closing all open PRs."
+# Only PRs whose head branch is `fixture/*` — the ones apply-fixture.sh opens.
+#
+# This used to close EVERY open PR. That is defensible for a human resetting
+# their own environment, and destructive once the E2E gate runs it in CI on a
+# shared repo: it closed mergewatch.ai#442's own fixture-authoring PR
+# (fixtures#763) mid-review, with --delete-branch, so it could not even be
+# reopened without re-pushing the branch. A test harness must not delete work
+# it did not create.
+echo "→ Closing open fixture/* PRs."
 closed_total=0
 while :; do
   # read into an array without mapfile (bash 4+) so this runs on macOS bash 3.2
   OPEN_PRS=()
   while IFS= read -r pr_num; do
     [ -n "$pr_num" ] && OPEN_PRS+=("$pr_num")
-  done < <(gh pr list --state open --limit 100 --json number --jq '.[].number')
+  done < <(gh pr list --state open --limit 100 --json number,headRefName \
+             --jq '.[] | select(.headRefName | startswith("fixture/")) | .number')
   [ "${#OPEN_PRS[@]}" -eq 0 ] && break
   closed_this_round=0
   for pr in "${OPEN_PRS[@]}"; do
@@ -67,9 +76,11 @@ while :; do
     break
   fi
 done
-[ "$closed_total" -eq 0 ] && echo "→ No open PRs."
+[ "$closed_total" -eq 0 ] && echo "→ No open fixture/* PRs."
 
-# --- 2. delete remaining remote branches except main ------------------------
+# --- 2. delete remaining remote fixture/* branches ---------------------------
+# Scoped for the same reason as the PR close above: anything not named
+# `fixture/*` belongs to a person, not to a suite run.
 git fetch --prune origin --quiet
 # while-read over process substitution (no mapfile) keeps the body in the
 # current shell and stays bash 3.2 compatible.
@@ -81,7 +92,8 @@ while IFS= read -r b; do
 done < <(
   git for-each-ref --format='%(refname:short)' refs/remotes/origin \
     | sed 's#^origin/##' \
-    | grep -vxE 'main|HEAD'
+    | grep -vxE 'main|HEAD' \
+    | grep -E '^fixture/'
 )
 
 # --- 3. return to main, reset to baseline -----------------------------------
