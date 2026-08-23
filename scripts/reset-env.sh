@@ -8,7 +8,16 @@
 #   4. return to a clean main reset to the e2e-baseline tag
 #   5. prune stale remote-tracking refs
 #
-# Preserved: the e2e-baseline tag, fixtures/, scripts/, and main.
+# Preserved: the e2e-baseline tag, and the `main` BRANCH REF on the remote.
+#
+# NOT preserved, despite what step 4 sounds like: `git reset --hard e2e-baseline`
+# moves the LOCAL main pointer to the baseline commit, so the working tree
+# becomes the baseline — and e2e-baseline predates most of the tooling. After
+# this script runs, the local tree has no grade-run.mjs, no await-reviews.mjs,
+# no select-fixtures.sh, and no fixtures/*/expect.json.
+#
+# Anything that needs the tooling after a reset must take it from `origin/main`,
+# not from `main`. The E2E gate lost two runs to this (mergewatch.ai#451).
 #
 # This is destructive and runs immediately (no confirmation). Closed PRs and
 # deleted branches are gone from the working set; PR history survives on GitHub.
