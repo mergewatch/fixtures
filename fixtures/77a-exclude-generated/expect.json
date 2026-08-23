@@ -1,0 +1,9 @@
+{
+  "_source": "README Expected outcomes — E2E-77a. excludePatterns removes a file from the diff sent to agents WITHOUT changing the skip decision, so the PR is still reviewed and the hand-written defect still lands.",
+  "comment": "present",
+  "findings": { "critical": { "min": 1 } },
+  "check": "failure",
+  "reviewState": "CHANGES_REQUESTED",
+  "inlineComments": { "min": 1 },
+  "mustNotContain": ["api.generated.ts"]
+}

@@ -69,8 +69,27 @@ function gh(args) {
 
 function fetchPR(number) {
   const raw = gh(['pr', 'view', String(number), '--json',
-    'comments,reviews,statusCheckRollup,reactionGroups,state']);
+    'comments,reviews,statusCheckRollup,reactionGroups,state,headRefOid']);
   return JSON.parse(raw);
+}
+
+/**
+ * Check-run `output` (title + summary) for a commit.
+ *
+ * `statusCheckRollup` does NOT carry them — its fields are exactly
+ * __typename, name, status, conclusion, startedAt, completedAt, detailsUrl,
+ * workflowName. So `checkTitleMatches` was testing its regex against an empty
+ * string and could never pass: E2E-06, -09 and -10 asserted a title no code
+ * path could supply. The REST check-runs endpoint has the data.
+ */
+function fetchCheckOutputs(repo, sha) {
+  if (!sha) return [];
+  try {
+    return JSON.parse(gh(['api', `repos/${repo}/commits/${sha}/check-runs`, '--paginate']))
+      .check_runs ?? [];
+  } catch {
+    return [];
+  }
 }
 
 function fetchInlineComments(repo, number) {
@@ -108,10 +127,16 @@ function parseFindingCounts(body) {
 }
 
 /** The stage's check run, or null when it never appeared. */
-function findCheck(pr, stage) {
+function findCheck(pr, stage, checkRuns = []) {
   const name = checkNameFor(stage);
   const runs = (pr.statusCheckRollup ?? []).filter((c) => c.name === name);
-  return runs.length ? runs[runs.length - 1] : null;
+  const base = runs.length ? runs[runs.length - 1] : null;
+  if (!base) return null;
+  // Graft the output the rollup omits. Matched by name and taken last-wins for
+  // the same reason as the rollup: a re-review replaces the check.
+  const detailed = checkRuns.filter((c) => c.name === name);
+  const out = detailed.length ? detailed[detailed.length - 1].output ?? {} : {};
+  return { ...base, title: out.title ?? null, summary: out.summary ?? null };
 }
 
 /**
@@ -182,6 +207,15 @@ function evaluate(expect, observed) {
       fail.push(`check title ${JSON.stringify(title)} does not match /${expect.checkTitleMatches}/i`);
     }
   }
+  // The skip *reason* lands in the check summary, not the title — the title is
+  // a bare "Review skipped" for every kind. Asserting the reason is the only
+  // way a fixture can tell maxFiles from autoReviewOff from a docs-only skip.
+  if (expect.checkSummaryMatches) {
+    const summary = check?.summary ?? check?.output?.summary ?? '';
+    if (!new RegExp(expect.checkSummaryMatches, 'i').test(summary)) {
+      fail.push(`check summary ${JSON.stringify(summary)} does not match /${expect.checkSummaryMatches}/i`);
+    }
+  }
 
   if (expect.reviewState != null) {
     const got = review?.state ?? 'none';
@@ -228,6 +262,7 @@ function evaluate(expect, observed) {
 // --- Observation ------------------------------------------------------------
 function observe(pr, repo, prNumber, stage) {
   const comment = findBotComment(pr, stage);
+  const checkRuns = fetchCheckOutputs(repo, pr.headRefOid);
   const inline = fetchInlineComments(repo, prNumber)
     .filter((c) => (c.body ?? '').includes(
       !stage || stage === 'prod' ? '<!-- mergewatch-inline -->' : `<!-- mergewatch-inline:${stage} -->`));
@@ -235,7 +270,7 @@ function observe(pr, repo, prNumber, stage) {
     comment,
     score: parseScore(comment?.body),
     counts: parseFindingCounts(comment?.body),
-    check: findCheck(pr, stage),
+    check: findCheck(pr, stage, checkRuns),
     review: latestStageReview(pr, stage, comment?.author?.login),
     inlineCount: inline.length,
     reactions: (pr.reactionGroups ?? []).filter((g) => (g.users?.totalCount ?? 0) > 0)

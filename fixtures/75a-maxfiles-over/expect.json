@@ -1,0 +1,9 @@
+{
+  "_source": "README Expected outcomes — E2E-75a. maxFiles is a VISIBLE skip, unlike autoReviewOff, and the check must name the configured limit.",
+  "comment": "absent",
+  "check": "neutral",
+  "checkTitleMatches": "skip",
+  "checkSummaryMatches": "max: 3",
+  "reviewState": "none",
+  "inlineComments": 0
+}

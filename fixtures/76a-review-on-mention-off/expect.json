@@ -1,0 +1,5 @@
+{
+  "_source": "README Expected outcomes — E2E-76a, AUTOMATED HALF ONLY. Asserts the control: autoReview is unaffected and the PR reviews on open. The mention-suppression half needs the POST_OPEN_HINT comment and is not visible in final PR state, so it stays a manual check.",
+  "comment": "present",
+  "score": { "min": 1, "max": 5 }
+}
