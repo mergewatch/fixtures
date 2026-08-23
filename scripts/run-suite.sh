@@ -120,6 +120,20 @@ for name in "${FIXTURES[@]}"; do
       echo "✗ $name failed (exit $rc)" >&2
       FAIL+=("$name")
       applied="error"
+      # A fixture that dies mid-apply leaves the overlay uncommitted, and
+      # apply-fixture.sh refuses to start on a dirty tree — so ONE failure
+      # rejects every fixture after it, each still paying the inter-fixture
+      # sleep. The gate's first real run failed exactly this way: fixture 1 had
+      # no git identity, and fixtures 2-5 reported "Working tree has
+      # uncommitted changes". Five failures, one cause, and in a blocking gate
+      # that reads as a broad regression rather than a missing config.
+      #
+      # Restore the tree so each fixture's result reflects that fixture.
+      if ! git diff --quiet || ! git diff --cached --quiet || [ -n "$(git status --porcelain)" ]; then
+        echo "→ Restoring a clean tree so the next fixture is not poisoned by this one." >&2
+        git reset --hard --quiet 2>/dev/null || true
+        git clean -fdq 2>/dev/null || true
+      fi
     fi
   fi
 
