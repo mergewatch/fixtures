@@ -7,6 +7,7 @@
 #   scripts/select-fixtures.sh --tag agents
 #   scripts/select-fixtures.sh --mode dynamo
 #   scripts/select-fixtures.sh --tag correctness --automated
+#   scripts/select-fixtures.sh --changed-files - --automated --graded
 #   git -C ../mergewatch.ai diff --name-only main... \
 #     | scripts/select-fixtures.sh --changed-files -
 #
@@ -25,7 +26,7 @@ REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
 MAP="$REPO_ROOT/e2e/impact-map.yml"
 
-TAGS=(); MODES=(); CHANGED=""; EXPLAIN="${EXPLAIN:-0}"; AUTOMATION=""
+TAGS=(); MODES=(); CHANGED=""; EXPLAIN="${EXPLAIN:-0}"; AUTOMATION=""; GRADING=""
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -34,6 +35,8 @@ while [ $# -gt 0 ]; do
     --changed-files) CHANGED="$2"; shift 2 ;;
     --automated)     AUTOMATION="automated"; shift ;;
     --manual)        AUTOMATION="manual"; shift ;;
+    --graded)        GRADING="graded"; shift ;;
+    --ungraded)      GRADING="ungraded"; shift ;;
     --explain)       EXPLAIN=1; shift ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
@@ -54,6 +57,22 @@ automation_ok() {
     "")        return 0 ;;
     automated) is_manual "$1" && return 1 || return 0 ;;
     manual)    is_manual "$1" && return 0 || return 1 ;;
+  esac
+}
+
+is_graded() { [ -f "$REPO_ROOT/fixtures/$1/expect.json" ]; }
+
+# Keeps or drops one fixture by --graded / --ungraded.
+#
+# An ungraded fixture has no expect.json, so grade-run.mjs reports it UNGRADED
+# and exits 0 for it — it can never fail. Running one inside a blocking gate
+# costs a real PR and a real LLM review to assert nothing, so the gate selects
+# --graded and the cost tracks the verification actually obtained.
+grading_ok() {
+  case "$GRADING" in
+    "")       return 0 ;;
+    graded)   is_graded "$1" && return 0 || return 1 ;;
+    ungraded) is_graded "$1" && return 1 || return 0 ;;
   esac
 }
 
@@ -127,7 +146,7 @@ if [ -n "$CHANGED" ]; then
     # Still honour --automated/--manual: "everything is impacted" is a statement
     # about scope, not about which fixtures can actually run unattended.
     for f in "${ALL_FIXTURES[@]}"; do
-      automation_ok "$f" && echo "$f"
+      automation_ok "$f" && grading_ok "$f" && echo "$f"
     done
     exit 0
   fi
@@ -142,7 +161,7 @@ fi
 # --- apply filters ----------------------------------------------------------
 if [ "${#TAGS[@]}" -eq 0 ] && [ "${#MODES[@]}" -eq 0 ]; then
   for f in "${ALL_FIXTURES[@]}"; do
-    automation_ok "$f" && echo "$f"
+    automation_ok "$f" && grading_ok "$f" && echo "$f"
   done
   exit 0
 fi
@@ -163,7 +182,7 @@ for f in "${ALL_FIXTURES[@]}"; do
       [ "$fmode" = "$m" ] && { keep=1; break; }
     done
   fi
-  if [ "$keep" -eq 1 ] && automation_ok "$f"; then echo "$f"; fi
+  if [ "$keep" -eq 1 ] && automation_ok "$f" && grading_ok "$f"; then echo "$f"; fi
 done
 
 # A selection that legitimately matches nothing is not an error; unknown tags and
