@@ -16,11 +16,43 @@
 # When you add a fixture tag, add the paths that should trigger it here too —
 # an untagged path is not an error, it just means the full suite runs.
 
+# ── Paths with no product behaviour ──────────────────────────────────────────
+# These run NO fixtures. They are first because `first match wins`, and a
+# markdown file under packages/dashboard should resolve here rather than to the
+# dashboard tag.
+#
+# Without these, a docs-only merge falls through to the pessimistic default and
+# pays for a full suite run — the single largest source of wasted spend in the
+# gate (#445).
+#
+# NOTE: these are bash `case` patterns, not globstar. `*` already spans `/`, so
+# a single `*.md` covers every depth — while `**/*.md` would require at least
+# one slash and miss a top-level README. Verified, not assumed:
+#
+#   README.md   vs *.md -> MATCH   vs **/*.md -> no
+#   docs/a/b.md vs *.md -> MATCH   vs **/*.md -> MATCH
+*.md:                                           []
+docs/**:                                        []
+.github/**:                                     []
+.mergewatch.yml:                                []
+# Operator tooling — deploy, SSM setup, OSS grants. Real code, but none of it
+# runs in the review path, so no fixture can observe a change here.
+scripts/**:                                     []
+
 # ── Agents, prompts, verification ────────────────────────────────────────────
 packages/core/src/agents/prompts.ts:            [agents, prompts]
 packages/core/src/agents/reviewer.ts:           [agents, verification, dedup, delta]
 packages/core/src/agents/inline-reply.ts:       [inline, engagement]
 packages/core/src/agents/**:                    [agents]
+
+# ── Retrieval / context assembly (#424) ──────────────────────────────────────
+# E2E-81 (file-request budget) is the fixture that observes this today.
+packages/core/src/context/**:                   [agents, context]
+packages/core/src/diff-filter.ts:               [config, skip]
+packages/core/src/llm/context-windows.ts:       [skip, config]
+# Stage-scoped review identity (#416) decides which marker, check-run name, and
+# inline anchors a review writes — every output-shaped fixture sees it.
+packages/core/src/stage.ts:                     [review-core, output, checks]
 
 # ── Trigger + skip decisions ─────────────────────────────────────────────────
 packages/core/src/skip-logic.ts:                [skip, triggers]
