@@ -46,6 +46,17 @@ fixture_field() {  # <fixture> <KEY>
   grep -E "^$2=" "$meta" | head -1 | cut -d= -f2- | tr -d '\r'
 }
 
+is_manual() { [ "$(fixture_field "$1" MANUAL_ONLY)" = "true" ]; }
+
+# Keeps or drops one fixture by --automated / --manual. No filter set keeps all.
+automation_ok() {
+  case "$AUTOMATION" in
+    "")        return 0 ;;
+    automated) is_manual "$1" && return 1 || return 0 ;;
+    manual)    is_manual "$1" && return 0 || return 1 ;;
+  esac
+}
+
 ALL_FIXTURES=()
 while IFS= read -r fx; do [ -n "$fx" ] && ALL_FIXTURES+=("$fx"); done < <(ls -1 fixtures | sort)
 
@@ -129,17 +140,6 @@ if [ -n "$CHANGED" ]; then
 fi
 
 # --- apply filters ----------------------------------------------------------
-is_manual() { [ "$(fixture_field "$1" MANUAL_ONLY)" = "true" ]; }
-
-# Keeps or drops one fixture by --automated / --manual. No filter set keeps all.
-automation_ok() {
-  case "$AUTOMATION" in
-    "")        return 0 ;;
-    automated) is_manual "$1" && return 1 || return 0 ;;
-    manual)    is_manual "$1" && return 0 || return 1 ;;
-  esac
-}
-
 if [ "${#TAGS[@]}" -eq 0 ] && [ "${#MODES[@]}" -eq 0 ]; then
   for f in "${ALL_FIXTURES[@]}"; do
     automation_ok "$f" && echo "$f"
@@ -163,5 +163,10 @@ for f in "${ALL_FIXTURES[@]}"; do
       [ "$fmode" = "$m" ] && { keep=1; break; }
     done
   fi
-  [ "$keep" -eq 1 ] && automation_ok "$f" && echo "$f"
+  if [ "$keep" -eq 1 ] && automation_ok "$f"; then echo "$f"; fi
 done
+
+# A selection that legitimately matches nothing is not an error; unknown tags and
+# modes already exited 2 above. Without this, a filtered-out LAST fixture leaves
+# the loop's non-zero status as the script's, and every caller reads it as failure.
+exit 0
