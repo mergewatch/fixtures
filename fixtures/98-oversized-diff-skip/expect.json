@@ -1,0 +1,11 @@
+{
+  "_source": "README Expected outcomes — E2E-98. Asserts only what is mechanical: the review COMPLETED (a comment with a parsed verdict, rather than the ValidationException that #423 was filed for) and neither oversized artifact leaked into the output. Deliberately does NOT assert that the off-by-one in rate-limiter.ts is found, or at what severity — that is model judgement, and this fixture carries the `correctness` tag, which means a deterministic contract. Log-line assertions (Excluded N file(s), [input-budget] dropped N) are not machine-checkable here because grade-run.mjs reads GitHub, not CloudWatch.",
+  "comment": "present",
+  "score": { "min": 1, "max": 5 },
+  "mustNotContain": [
+    "tsconfig.tsbuildinfo",
+    "geo-regions.json",
+    "Input is too long",
+    "encountered an error"
+  ]
+}
