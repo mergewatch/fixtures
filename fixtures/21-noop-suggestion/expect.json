@@ -1,0 +1,5 @@
+{
+  "_source": "README Expected outcomes — E2E-21. src/already-awaited.ts ALREADY awaits migrationRunner, so the no-op guard's job is to drop a 'missing await' finding whose suggested fix is the code that is already there (the PR #31 false positive). Asserted as `critical: 0` rather than by string-matching the finding text: a one-sided assertion that can only fail if the guard regresses, and it does not depend on the model choosing any particular wording. The log-line outcome ('dropped by the no-op guard') is not machine-checkable — grade-run reads GitHub, not CloudWatch.",
+  "comment": "present",
+  "findings": { "critical": 0 }
+}

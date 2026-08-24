@@ -1,0 +1,5 @@
+{
+  "_source": "README Expected outcomes — E2E-22. src/kb.ts ALREADY awaits kbStore.searchCandidates, so a 'missing await race' CRITICAL is a truncated-diff artifact that structural grounding cannot catch (the identifier IS present on the right line) and W2's full-file verification must. `critical: 0` is the one-sided form: it can only fail if the verification pass regresses, and it does not assume any particular phrasing. The fail-safe branch — an LLM/infra error KEEPS the finding — is deliberately not asserted here; it needs an unreachable model and stays a manual check.",
+  "comment": "present",
+  "findings": { "critical": 0 }
+}

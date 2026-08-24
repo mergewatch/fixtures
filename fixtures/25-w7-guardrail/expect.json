@@ -1,0 +1,6 @@
+{
+  "_source": "README Expected outcomes — E2E-25. src/inscrutable.ts is correct-but-suspicious: a parameterised query behind an integer guard. W7's contract is that a Critical the verifier could not confirm clamps to an ADVISORY verdict rather than a blocking one. `check: success` holds on BOTH branches — judged clean (5/5) or clamped (3/5) — which is what makes it deterministic; reviewState is NOT asserted because APPROVED and COMMENTED are both correct outcomes. `Needs fixes` is the 2/5 label, so its absence is the blocking-verdict check. The stored `verification: 'unverified'` tag and the follow-up-commit branch both need the review record or a second push, and stay manual.",
+  "comment": "present",
+  "check": "success",
+  "mustNotContain": ["Needs fixes"]
+}
