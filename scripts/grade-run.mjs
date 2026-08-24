@@ -126,6 +126,25 @@ function parseFindingCounts(body) {
   };
 }
 
+/**
+ * Every rendered finding's `file` and `line`, from the comment body.
+ *
+ * The formatter emits each as ``- **`path:NN`** — Title``, so the anchor a
+ * reader actually sees is recoverable without a model. This is what lets a
+ * fixture assert WHERE a finding landed, not just how many there were —
+ * the question E2E-17 and E2E-26 exist to ask, and the one the grader
+ * previously had no way to express.
+ */
+function parseFindingAnchors(body) {
+  const out = [];
+  const re = /- \*\*`([^`]+):(\d+)`\*\* —/g;
+  let m;
+  while ((m = re.exec(body ?? '')) !== null) {
+    out.push({ file: m[1], line: Number(m[2]) });
+  }
+  return out;
+}
+
 /** The stage's check run, or null when it never appeared. */
 function findCheck(pr, stage, checkRuns = []) {
   const name = checkNameFor(stage);
@@ -163,7 +182,7 @@ function latestStageReview(pr, stage, commentAuthor) {
  */
 function evaluate(expect, observed) {
   const fail = [];
-  const { comment, score, counts, check, review, inlineCount, reactions } = observed;
+  const { comment, score, counts, check, review, inlineCount, reactions, anchors } = observed;
 
   if (expect.comment === 'present' && !comment) fail.push('expected a summary comment, found none');
   if (expect.comment === 'absent' && comment) fail.push('expected NO summary comment, found one');
@@ -241,6 +260,19 @@ function evaluate(expect, observed) {
     if (!new RegExp(re).test(body)) fail.push(`comment does not match /${re}/`);
   }
 
+  // Where a finding landed, not just that it exists. One-sided by design: a
+  // file with no findings passes, so this can only fail when an anchor is
+  // WRONG — never because a model declined to report something. E2E-02's
+  // removed rule is the counter-example.
+  for (const rule of expect.findingLines ?? []) {
+    const hits = anchors.filter((a) => a.file === rule.file);
+    for (const a of hits) {
+      if (rule.in && !rule.in.includes(a.line)) {
+        fail.push(`finding on ${a.file} anchored at line ${a.line}, expected one of ${rule.in.join(', ')}`);
+      }
+    }
+  }
+
   if (expect.inlineComments != null) {
     const { min, max, is } = typeof expect.inlineComments === 'number'
       ? { is: expect.inlineComments } : expect.inlineComments;
@@ -269,6 +301,7 @@ function observe(pr, repo, prNumber, stage) {
   return {
     comment,
     score: parseScore(comment?.body),
+    anchors: parseFindingAnchors(comment?.body),
     counts: parseFindingCounts(comment?.body),
     check: findCheck(pr, stage, checkRuns),
     review: latestStageReview(pr, stage, comment?.author?.login),
