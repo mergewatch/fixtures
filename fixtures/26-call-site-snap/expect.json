@@ -1,0 +1,7 @@
+{
+  "_source": "README Expected outcomes — E2E-26. src/svc.ts defines searchViaPostgres at line 1 and calls it at line 10. W8's contract is that a finding about the CALL snaps to the call site rather than the definition — the #39 failure mode. Line 2 is allowed because the body of the definition is a legitimate anchor for a finding genuinely about the implementation; line 1, the `export async function` signature, is the one W8 must move off when a use-site exists. One-sided, like E2E-17.",
+  "comment": "present",
+  "findingLines": [
+    { "file": "src/svc.ts", "in": [2, 9, 10] }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "_source": "README Expected outcomes — E2E-17. src/race-trap.ts puts a seven-line comment ABOUT a race condition above code that correctly awaits both writes. The trap is an anchor on the prose (lines 1-8) instead of the code (10-11). Grounding must snap or drop it. `findingLines` asserts where the finding LANDED, which is the question this fixture exists to ask and which the grader could not express before. One-sided: if no finding lands on this file the rule passes, so it can only fail on a WRONG anchor — never because the model declined to report anything.",
+  "comment": "present",
+  "findingLines": [
+    { "file": "src/race-trap.ts", "in": [9, 10, 11] }
+  ]
+}
