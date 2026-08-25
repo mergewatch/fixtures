@@ -13,7 +13,8 @@
 #   # Selective runs (#416) — see scripts/select-fixtures.sh
 #   scripts/run-suite.sh --tag agents --tag output
 #   scripts/run-suite.sh --mode dynamo
-#   scripts/run-suite.sh --tag correctness --automated   # the runnable gate
+#   scripts/run-suite.sh --tag correctness --automated            # runnable
+#   scripts/run-suite.sh --tag correctness --automated --graded  # + can fail
 #   git -C ../mergewatch.ai diff --name-only main... \
 #     | scripts/run-suite.sh --changed-files -
 #
@@ -54,7 +55,8 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --tag|--mode|--changed-files) SELECT_ARGS+=("$1" "$2"); shift 2 ;;
     --dry-run)                    DRY_RUN=1; shift ;;
-    --automated|--manual)         SELECT_ARGS+=("$1"); shift ;;
+    --automated|--manual|--graded|--ungraded)
+                                  SELECT_ARGS+=("$1"); shift ;;
     --explain)                    SELECT_ARGS+=("--explain"); shift ;;
     -*) echo "unknown flag: $1" >&2; exit 2 ;;
     *)  POSITIONAL+=("$1"); shift ;;
@@ -93,6 +95,40 @@ if [ "$DRY_RUN" -eq 1 ]; then
 fi
 
 TOTAL="${#FIXTURES[@]}"
+
+# --- preflight: every selected fixture must exist in e2e-baseline -----------
+#
+# apply-fixture resets the tree to e2e-baseline before overlaying, so a fixture
+# whose DIRECTORY was added after the tag was last moved simply is not there —
+# and the failure surfaces as a bare "exit 1" plus a listing of the fixtures
+# that do exist, which reads like a typo rather than a stale tag.
+#
+# This bit for real: 98-oversized-diff-skip and 97-marketplace-purchase were
+# merged to main but absent from the tag, so the deploy gate's first
+# full-coverage run failed on 98 and blocked production. Fail fast, and name
+# the actual fix.
+if git rev-parse -q --verify e2e-baseline >/dev/null 2>&1; then
+  MISSING=()
+  for name in "${FIXTURES[@]}"; do
+    git cat-file -e "e2e-baseline:fixtures/$name/meta.env" 2>/dev/null || MISSING+=("$name")
+  done
+  if [ "${#MISSING[@]}" -gt 0 ]; then
+    echo "" >&2
+    echo "✗ ${#MISSING[@]} selected fixture(s) do not exist in the e2e-baseline tag:" >&2
+    printf '    %s\n' "${MISSING[@]}" >&2
+    echo "" >&2
+    echo "  Fixture branches are cut from e2e-baseline, so a fixture added to main" >&2
+    echo "  after the tag last moved cannot be applied. Advance the tag:" >&2
+    echo "" >&2
+    echo "    git tag -f e2e-baseline main && git push -f origin e2e-baseline" >&2
+    echo "" >&2
+    echo "  Check it only moves harness files first — 'git diff --stat e2e-baseline main -- src/'" >&2
+    echo "  must be EMPTY, or the app under review changes and past runs stop being" >&2
+    echo "  comparable." >&2
+    exit 2
+  fi
+fi
+
 echo "→ Running suite: $TOTAL fixture(s)."
 
 PASS=(); FAIL=(); PREREQ_SKIPPED=()
