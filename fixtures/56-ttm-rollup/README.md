@@ -43,3 +43,17 @@ Read the `cycleTime` block on each window's `InstallationFPInsight` (DynamoDB `m
 - ❌ A negative span (clock skew) feeds the stats instead of being dropped.
 - ❌ An empty sample serializes as `{p50:0,p75:0,p90:0}` rather than `null` (dashboard then shows a misleading "0h").
 - ❌ Wiring the lifecycle store changes the FP-feedback numbers (the two rollups must be independent).
+
+## How to verify locally
+
+`MANUAL_ONLY` — `grade-run.mjs` reads GitHub, and this fixture asserts on
+DynamoDB. See [`e2e/MANUAL-VERIFICATION.md`](../../e2e/MANUAL-VERIFICATION.md)
+for the session check and the command shapes.
+
+- **Table** — `mergewatch-installation-fp-insights-dev` (the **dev** stage, never prod)
+- **Key** — pk `installationId` · sk `window`
+- **Look at** — the time-to-merge percentiles
+
+Record what you checked. A graded run reports this fixture as **NOT VERIFIED**,
+and an unrecorded manual pass is indistinguishable from one that never
+happened.

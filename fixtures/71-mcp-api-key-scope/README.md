@@ -29,3 +29,14 @@ This is the authentication boundary for the whole MCP surface — **E2E-69**, **
 - ❌ An out-of-scope `repo` is silently ignored and the review runs unscoped.
 - ❌ Any response echoes the raw key or its hash.
 - ❌ A scoped key can read another repo's conventions via `resources/read`.
+
+## How to verify locally
+
+`MANUAL_ONLY` — `grade-run.mjs` reads GitHub PR state, and this fixture asserts
+on an MCP endpoint. See [`e2e/MANUAL-VERIFICATION.md`](../../e2e/MANUAL-VERIFICATION.md).
+
+Call with a key scoped to a different installation and assert it is refused — this one is a security boundary, so a pass means the *refusal* was observed, not merely that nothing broke.
+
+Record what you checked. A graded run reports this fixture as **NOT VERIFIED**,
+and an unrecorded manual pass is indistinguishable from one that never
+happened.

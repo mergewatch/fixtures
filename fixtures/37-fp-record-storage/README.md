@@ -48,3 +48,17 @@ ORDER BY last_seen DESC;
 
 - ❌ Two records get created for the same finding because `findingMatchKey` was computed inconsistently across writers
 - ❌ A failed write blocks the review pipeline (writes must be best-effort / async)
+
+## How to verify locally
+
+`MANUAL_ONLY` — `grade-run.mjs` reads GitHub, and this fixture asserts on
+DynamoDB. See [`e2e/MANUAL-VERIFICATION.md`](../../e2e/MANUAL-VERIFICATION.md)
+for the session check and the command shapes.
+
+- **Table** — `mergewatch-finding-dispositions-dev` (the **dev** stage, never prod)
+- **Key** — pk `{installationId}#{owner}/{repo}` · sk = the finding key
+- **Look at** — the disposition and its counters
+
+Record what you checked. A graded run reports this fixture as **NOT VERIFIED**,
+and an unrecorded manual pass is indistinguishable from one that never
+happened.

@@ -21,3 +21,17 @@ Branch: `fixture/58-engagement-resolve`. On a repo with an active review that su
 - ❌ `/resolve` only increments `disputeCount` (the resolve engagement signal is lost — the #195 regression).
 - ❌ A pre-#195 row throws or reads `undefined`/`NaN` for `resolveCount` (must coerce to 0).
 - ❌ The Postgres migration is non-idempotent (no `ADD COLUMN IF NOT EXISTS`) and fails `migrations:check` or a re-run.
+
+## How to verify locally
+
+`MANUAL_ONLY` — `grade-run.mjs` reads GitHub, and this fixture asserts on
+DynamoDB. See [`e2e/MANUAL-VERIFICATION.md`](../../e2e/MANUAL-VERIFICATION.md)
+for the session check and the command shapes.
+
+- **Table** — `mergewatch-finding-dispositions-dev` (the **dev** stage, never prod)
+- **Key** — pk `{installationId}#{owner}/{repo}` · sk = the finding key
+- **Look at** — `resolveCount` incremented alongside the disposition
+
+Record what you checked. A graded run reports this fixture as **NOT VERIFIED**,
+and an unrecorded manual pass is indistinguishable from one that never
+happened.

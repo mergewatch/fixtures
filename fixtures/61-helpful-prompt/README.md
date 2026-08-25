@@ -21,3 +21,17 @@ Branch: `fixture/61-helpful-prompt`. On a repo with an active review, confirm th
 - ❌ The prompt is missing from the summary footer.
 - ❌ A re-review double-counts the same reaction (snapshot delta broken).
 - ❌ A satisfaction-store write error blocks the review.
+
+## How to verify locally
+
+`MANUAL_ONLY` — `grade-run.mjs` reads GitHub, and this fixture asserts on
+DynamoDB. See [`e2e/MANUAL-VERIFICATION.md`](../../e2e/MANUAL-VERIFICATION.md)
+for the session check and the command shapes.
+
+- **Table** — `mergewatch-satisfaction-dev` (the **dev** stage, never prod)
+- **Key** — pk `{installationId}#{owner}/{repo}` · sk = the review key
+- **Look at** — the satisfaction delta, and that it is monotonic across re-reviews
+
+Record what you checked. A graded run reports this fixture as **NOT VERIFIED**,
+and an unrecorded manual pass is indistinguishable from one that never
+happened.

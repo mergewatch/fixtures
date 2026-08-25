@@ -26,3 +26,17 @@ Dashboard-inspection fixture, no fixture PR.
 - [ ] n = 20 with distinct durations → p95 = second-highest value (not the
       maximum)
 - [ ] Average / Completed unaffected in both states
+
+## How to verify locally
+
+`MANUAL_ONLY` — `grade-run.mjs` reads GitHub, and this fixture asserts on
+DynamoDB. See [`e2e/MANUAL-VERIFICATION.md`](../../e2e/MANUAL-VERIFICATION.md)
+for the session check and the command shapes.
+
+- **Table** — `mergewatch-installation-fp-insights-dev` (the **dev** stage, never prod)
+- **Key** — pk `installationId` · sk `window`
+- **Look at** — the p95 value against the nearest-rank definition
+
+Record what you checked. A graded run reports this fixture as **NOT VERIFIED**,
+and an unrecorded manual pass is indistinguishable from one that never
+happened.

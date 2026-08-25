@@ -31,3 +31,17 @@ API-inspection fixture, no fixture PR.
 - [ ] Full-timestamp bounds honored exactly, never re-widened
 - [ ] Postgres and DynamoDB return identical results for the same parameters
 - [ ] Invalid date forms are ignored (no 500, no partial filter)
+
+## How to verify locally
+
+`MANUAL_ONLY` — `grade-run.mjs` reads GitHub, and this fixture asserts on
+DynamoDB. See [`e2e/MANUAL-VERIFICATION.md`](../../e2e/MANUAL-VERIFICATION.md)
+for the session check and the command shapes.
+
+- **Table** — `mergewatch-installation-fp-insights-dev` (the **dev** stage, never prod)
+- **Key** — pk `installationId` · sk `window`
+- **Look at** — the inclusive/exclusive day bounds
+
+Record what you checked. A graded run reports this fixture as **NOT VERIFIED**,
+and an unrecorded manual pass is indistinguishable from one that never
+happened.

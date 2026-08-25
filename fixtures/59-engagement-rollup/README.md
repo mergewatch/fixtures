@@ -24,3 +24,17 @@ Branch: `fixture/59-engagement-rollup`. Use an installation with disposition + P
 - ❌ Rejects windowed by `lastSeen` instead of `rejectReasons[].at` (drops in-window rejects on long-lived records).
 - ❌ `findingActionRateApprox` exceeds 1 (uncapped proxy).
 - ❌ The `engagement` jsonb migration is non-idempotent (no `ADD COLUMN IF NOT EXISTS`).
+
+## How to verify locally
+
+`MANUAL_ONLY` — `grade-run.mjs` reads GitHub, and this fixture asserts on
+DynamoDB. See [`e2e/MANUAL-VERIFICATION.md`](../../e2e/MANUAL-VERIFICATION.md)
+for the session check and the command shapes.
+
+- **Table** — `mergewatch-installation-fp-insights-dev` (the **dev** stage, never prod)
+- **Key** — pk `installationId` · sk `window`
+- **Look at** — the engagement block — null rates for empty denominators
+
+Record what you checked. A graded run reports this fixture as **NOT VERIFIED**,
+and an unrecorded manual pass is indistinguishable from one that never
+happened.

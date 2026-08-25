@@ -37,3 +37,17 @@ Operator CLI fixture — no PR, no overlay; run from the upstream repo checkout.
 - ❌ Runs against prod without an explicit stage.
 - ❌ Grants a private repo.
 - ❌ Writes without showing what it will cover.
+
+## How to verify locally
+
+`MANUAL_ONLY` — `grade-run.mjs` reads GitHub, and this fixture asserts on
+DynamoDB. See [`e2e/MANUAL-VERIFICATION.md`](../../e2e/MANUAL-VERIFICATION.md)
+for the session check and the command shapes.
+
+- **Table** — `mergewatch-installations-dev` (the **dev** stage, never prod)
+- **Key** — pk `installationId` · sk `#SETTINGS`
+- **Look at** — the `ossGrant*` fields across grant, expiry and revoke
+
+Record what you checked. A graded run reports this fixture as **NOT VERIFIED**,
+and an unrecorded manual pass is indistinguishable from one that never
+happened.

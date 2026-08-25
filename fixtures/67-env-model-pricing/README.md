@@ -35,3 +35,14 @@ Self-hosted server fixture, `LLM_PROVIDER=bedrock`. No fixture PR — reuses any
 - ❌ Inline replies stay unpriced while full reviews are priced.
 - ❌ The env price wins over a per-repo `pricing:` entry for the same model.
 - ❌ A partial/invalid value reads as $0 with no warning, or the warn spams every review.
+
+## How to verify locally
+
+`MANUAL_ONLY` — `grade-run.mjs` reads GitHub PR state, and this fixture asserts
+on a rendered dashboard page. See [`e2e/MANUAL-VERIFICATION.md`](../../e2e/MANUAL-VERIFICATION.md).
+
+Read the page. Where a number is the real assertion, prefer the API beneath it over the pixels.
+
+Record what you checked. A graded run reports this fixture as **NOT VERIFIED**,
+and an unrecorded manual pass is indistinguishable from one that never
+happened.

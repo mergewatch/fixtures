@@ -43,3 +43,14 @@ curl -s "$MCP_URL" \
 - ❌ `repo` is accepted but the config/conventions are silently ignored.
 - ❌ The review is stored without `agentAuthored`, so `agentReview` strict mode never engages.
 - ❌ A tool error is returned as HTTP 500 instead of a JSON-RPC error object.
+
+## How to verify locally
+
+`MANUAL_ONLY` — `grade-run.mjs` reads GitHub PR state, and this fixture asserts
+on an MCP endpoint. See [`e2e/MANUAL-VERIFICATION.md`](../../e2e/MANUAL-VERIFICATION.md).
+
+Call the Function URL with an API key and assert the JSON-RPC response for `review_diff`.
+
+Record what you checked. A graded run reports this fixture as **NOT VERIFIED**,
+and an unrecorded manual pass is indistinguishable from one that never
+happened.

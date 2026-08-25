@@ -51,3 +51,17 @@ free tier is exhausted and whose balance is 0 — the same starting state as
 - ❌ A repo flipped private stays sponsored (the cost leak an approval-time check
   cannot catch).
 - ❌ Any Stripe call on the sponsored path.
+
+## How to verify locally
+
+`MANUAL_ONLY` — `grade-run.mjs` reads GitHub, and this fixture asserts on
+DynamoDB. See [`e2e/MANUAL-VERIFICATION.md`](../../e2e/MANUAL-VERIFICATION.md)
+for the session check and the command shapes.
+
+- **Table** — `mergewatch-installations-dev` (the **dev** stage, never prod)
+- **Key** — pk `installationId` · sk `#SETTINGS`
+- **Look at** — `ossStatus`, and that the balance and `freeReviewsUsed` are untouched
+
+Record what you checked. A graded run reports this fixture as **NOT VERIFIED**,
+and an unrecorded manual pass is indistinguishable from one that never
+happened.

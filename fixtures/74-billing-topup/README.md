@@ -25,3 +25,17 @@ Billing fixture, no fixture PR of its own — drive it with ordinary fixture PRs
 - ❌ Two simultaneous reviews each trigger a top-up (the `autoReloadInFlight` guard is not holding).
 - ❌ Auto-reload charges when disabled.
 - ❌ A declined auto-reload lets reviews run unpaid.
+
+## How to verify locally
+
+`MANUAL_ONLY` — `grade-run.mjs` reads GitHub, and this fixture asserts on
+DynamoDB. See [`e2e/MANUAL-VERIFICATION.md`](../../e2e/MANUAL-VERIFICATION.md)
+for the session check and the command shapes.
+
+- **Table** — `mergewatch-installations-dev` (the **dev** stage, never prod)
+- **Key** — pk `installationId` · sk `#SETTINGS`
+- **Look at** — the balance before and after the top-up
+
+Record what you checked. A graded run reports this fixture as **NOT VERIFIED**,
+and an unrecorded manual pass is indistinguishable from one that never
+happened.
