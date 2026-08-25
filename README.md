@@ -154,15 +154,15 @@ with `--app-login` / `--dev-app-login` if your deployment's App slugs differ.
 | E2E-02 | `02-info-only` | Info-only findings → 5/5, "All clear" + Info collapsible | |
 | E2E-03 | `03-critical-finding` | Critical finding → inline comment + REQUEST_CHANGES | |
 | E2E-04 | `04-auto-review-off` | `autoReview: false` → zero PR trace | |
-| E2E-05 | `05-mention-override` | `autoReview: false` + `@mergewatch review` → review runs | reuses 04 |
+| E2E-05 | `05-mention-override` | `autoReview: false` + `@mergewatch review` → review runs | manual · reuses 04 |
 | E2E-06 | `06-docs-only` | Docs-only → visible "Review skipped" | |
 | E2E-07 | `07-include-patterns` | Docs-only + `includePatterns` → review runs | |
-| E2E-08 | `08-mention-overrides-skip` | Docs-only + `@mergewatch review` → review runs | reuses 06 |
+| E2E-08 | `08-mention-overrides-skip` | Docs-only + `@mergewatch review` → review runs | manual · reuses 06 |
 | E2E-09 | `09-draft-pr` | Draft PR → "Review skipped — Draft PR" | |
 | E2E-10 | `10-skip-review-label` | `skip-review` label → "Review skipped — label" | post-open label |
-| E2E-11 | `11-resynchronize` | Push new commit → old review dismissed + comment edited in place | reuses 01 |
+| E2E-11 | `11-resynchronize` | Push new commit → old review dismissed + comment edited in place | manual · reuses 01 |
 | E2E-12 | `12-rerun-check` | Click "Re-run" on the check → new review fires | UI only |
-| E2E-13 | `13-inline-reply-engages` | Human replies in MergeWatch inline thread → MergeWatch responds | reuses 03 |
+| E2E-13 | `13-inline-reply-engages` | Human replies in MergeWatch inline thread → MergeWatch responds | manual · reuses 03 |
 | E2E-14 | `14-third-party-thread` | Human replies in non-MergeWatch thread → no engagement | post-open UI |
 | E2E-15 | `15-mermaid-stress` | Complex diff → renderable Mermaid diagram | |
 | E2E-16 | `16-agent-authored` | PR from `claude/*` branch → flagged as agent-authored | |
