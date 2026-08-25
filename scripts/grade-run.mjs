@@ -21,7 +21,7 @@
  *   scripts/grade-run.mjs --json             # machine-readable output
  */
 import { execFileSync } from 'node:child_process';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
 
 // --- CLI --------------------------------------------------------------------
 const argv = process.argv.slice(2);
@@ -375,6 +375,47 @@ for (const entry of manifest.fixtures ?? []) {
   results.push({ ...base, verdict: fails.length ? 'FAIL' : 'PASS', notes: fails });
 }
 
+/**
+ * Correctness fixtures that this run did not touch at all.
+ *
+ * A fixture EXCLUDED by the selection never reaches the manifest, so it is not
+ * reported as anything — not even SKIP. A run of `--tag correctness --automated
+ * --graded` therefore prints "23 passed" while the other correctness fixtures
+ * go unmentioned, and a reader reasonably concludes the correctness set is
+ * covered. It is not: those checks simply did not happen.
+ *
+ * "Nobody checked" and "checked and clean" must not look the same. That is the
+ * whole premise of the gate, and it was still true of its own summary.
+ */
+function unverifiedCorrectness(ranFixtures) {
+  const ran = new Set(ranFixtures);
+  const out = [];
+  let dirs;
+  try {
+    dirs = readdirSync('fixtures', { withFileTypes: true })
+      .filter((d) => d.isDirectory()).map((d) => d.name);
+  } catch {
+    return out; // not run from the fixtures repo root — say nothing rather than guess
+  }
+  for (const name of dirs.sort()) {
+    if (ran.has(name)) continue;
+    let meta = '';
+    try {
+      meta = readFileSync(`fixtures/${name}/meta.env`, 'utf8');
+    } catch {
+      continue;
+    }
+    const tags = (/^TAGS=(.*)$/m.exec(meta)?.[1] ?? '').split(',').map((t) => t.trim());
+    if (!tags.includes('correctness')) continue;
+    out.push({
+      name,
+      manual: /^MANUAL_ONLY=true$/m.test(meta),
+      graded: existsSync(`fixtures/${name}/expect.json`),
+    });
+  }
+  return out;
+}
+
 // --- Report -----------------------------------------------------------------
 if (AS_JSON) {
   console.log(JSON.stringify({ repo, stage: STAGE ?? (COMPARE ? 'compare' : 'prod'), results }, null, 2));
@@ -391,6 +432,23 @@ if (AS_JSON) {
     + `${tally('SKIP')} skipped · ${tally('ERROR')} errored`);
   if (tally('UNGRADED')) {
     console.log('Ungraded fixtures have no expect.json — grade them with /verify-suite.');
+  }
+
+  // Everything carrying `correctness` that this selection left out. Reported,
+  // never counted: these are not failures, and the exit code is unchanged.
+  // But a summary that omits them lets a partial run read as a full one.
+  const missed = unverifiedCorrectness(results.map((r) => r.fixture));
+  if (missed.length) {
+    const manual = missed.filter((m) => m.manual).length;
+    const ungraded = missed.filter((m) => !m.manual && !m.graded).length;
+    // Automated AND graded, just not selected. Expected for an impact-scoped
+    // gate run; for a full release run this should be zero, and a non-zero
+    // value there means the selection is narrower than it looks.
+    const runnable = missed.filter((m) => !m.manual && m.graded).length;
+    console.log('');
+    console.log(`NOT VERIFIED: ${missed.length} correctness fixture(s) outside this run `
+      + `— ${manual} manual, ${ungraded} ungraded, ${runnable} graded but not selected.`);
+    console.log('  These were not checked. A green run above does not cover them.');
   }
 }
 
