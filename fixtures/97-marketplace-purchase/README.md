@@ -39,3 +39,17 @@ There is nothing on a PR to grade. Adding one would make the fixture report
 `UNGRADED`, which `grade-run.mjs` exits 0 on — a fixture that looks graded and
 can never fail. That is the pattern #447 exists to eliminate, so it is left
 off deliberately.
+
+## How to verify locally
+
+`MANUAL_ONLY` — `grade-run.mjs` reads GitHub, and this fixture asserts on
+DynamoDB. See [`e2e/MANUAL-VERIFICATION.md`](../../e2e/MANUAL-VERIFICATION.md)
+for the session check and the command shapes.
+
+- **Table** — `mergewatch-installations-dev` (the **dev** stage, never prod)
+- **Key** — pk `'#MARKETPLACE'` · sk = lowercased account login
+- **Look at** — `accountId`, `planName`, `purchasedAt`, and later `attachedInstallationId`
+
+Record what you checked. A graded run reports this fixture as **NOT VERIFIED**,
+and an unrecorded manual pass is indistinguishable from one that never
+happened.

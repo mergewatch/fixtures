@@ -42,3 +42,17 @@ FROM pr_lifecycle WHERE installation_id = '<id>';
 - ❌ A merged row downgrades to `closed_unmerged`, or `upsertOpened`/`recordPush` resurrects a terminal row (terminal-state discipline regressed).
 - ❌ A lifecycle write throwing blocks or fails the review (writes must be best-effort).
 - ❌ `firstReviewAt` moves on a re-review (it must be set-once).
+
+## How to verify locally
+
+`MANUAL_ONLY` — `grade-run.mjs` reads GitHub, and this fixture asserts on
+DynamoDB. See [`e2e/MANUAL-VERIFICATION.md`](../../e2e/MANUAL-VERIFICATION.md)
+for the session check and the command shapes.
+
+- **Table** — `mergewatch-pr-lifecycle-dev` (the **dev** stage, never prod)
+- **Key** — pk `{installationId}#{owner}/{repo}` · sk = PR number
+- **Look at** — `state`, `reviewed`, `firstReviewAt`, `prCreatedAt`, `totalPushes`, `pushesAfterFirstReview`, `mergedAt`, `ttl`
+
+Record what you checked. A graded run reports this fixture as **NOT VERIFIED**,
+and an unrecorded manual pass is indistinguishable from one that never
+happened.

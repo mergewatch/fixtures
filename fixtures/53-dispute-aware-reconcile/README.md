@@ -39,3 +39,17 @@ Let FB-A counters accumulate naturally over several weeks of disputes on a singl
 - ❌ The disclosure renders above the merge-score line, obscuring the primary verdict
 - ❌ A category with `surfaceCount < 5` makes it into the loader's output (small-N noise guard regressed in `loadCategoryDisputeRates`)
 - ❌ The clamp triggers when the orchestrator already scored ≥ 3 (the `orchestratorScore <= 2` gate regressed — this would be an unwanted *upward* shift since the W7-shaped clamp only ever should soften a would-be-red verdict)
+
+## How to verify locally
+
+`MANUAL_ONLY` — `grade-run.mjs` reads GitHub, and this fixture asserts on
+DynamoDB. See [`e2e/MANUAL-VERIFICATION.md`](../../e2e/MANUAL-VERIFICATION.md)
+for the session check and the command shapes.
+
+- **Table** — `mergewatch-finding-dispositions-dev` (the **dev** stage, never prod)
+- **Key** — pk `{installationId}#{owner}/{repo}` · sk = the finding key
+- **Look at** — `disputedKeys` membership and the reconciled disposition
+
+Record what you checked. A graded run reports this fixture as **NOT VERIFIED**,
+and an unrecorded manual pass is indistinguishable from one that never
+happened.

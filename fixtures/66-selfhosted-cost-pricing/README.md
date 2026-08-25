@@ -41,3 +41,14 @@ Self-hosted server with Postgres and the hourly cost rollup enabled.
 - ❌ `pricing:` in `.mergewatch.yml` has no effect (still dropped at parse).
 - ❌ A `0`/`0` model is reported as "unpriced".
 - ❌ The unpriced warn spams every review instead of once per model.
+
+## How to verify locally
+
+`MANUAL_ONLY` — `grade-run.mjs` reads GitHub PR state, and this fixture asserts
+on a rendered dashboard page. See [`e2e/MANUAL-VERIFICATION.md`](../../e2e/MANUAL-VERIFICATION.md).
+
+Read the page. Where a number is the real assertion, prefer the API beneath it over the pixels.
+
+Record what you checked. A graded run reports this fixture as **NOT VERIFIED**,
+and an unrecorded manual pass is indistinguishable from one that never
+happened.

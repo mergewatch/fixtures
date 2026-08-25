@@ -30,3 +30,17 @@ Billing fixture, no fixture PR of its own: burn the free tier with five ordinary
 - ❌ The free counter resets on reinstall, or counts per repo.
 - ❌ Reviews silently do nothing with no PR-visible explanation.
 - ❌ The block notification repeats on every PR.
+
+## How to verify locally
+
+`MANUAL_ONLY` — `grade-run.mjs` reads GitHub, and this fixture asserts on
+DynamoDB. See [`e2e/MANUAL-VERIFICATION.md`](../../e2e/MANUAL-VERIFICATION.md)
+for the session check and the command shapes.
+
+- **Table** — `mergewatch-installations-dev` (the **dev** stage, never prod)
+- **Key** — pk `installationId` · sk `#SETTINGS`
+- **Look at** — `freeReviewsUsed` — per installation and lifetime
+
+Record what you checked. A graded run reports this fixture as **NOT VERIFIED**,
+and an unrecorded manual pass is indistinguishable from one that never
+happened.

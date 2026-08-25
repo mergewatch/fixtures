@@ -30,3 +30,14 @@ Billing fixture on the MCP surface, no fixture PR. Needs a key from **E2E-71**, 
 - ❌ A **cheaper** later call produces a negative charge or a refund.
 - ❌ Two concurrent calls on one `sessionId` both bill in full (race on the session max).
 - ❌ A `sessionId` supplied by one installation affects another's billing.
+
+## How to verify locally
+
+`MANUAL_ONLY` — `grade-run.mjs` reads GitHub PR state, and this fixture asserts
+on an MCP endpoint plus the sessions table. See [`e2e/MANUAL-VERIFICATION.md`](../../e2e/MANUAL-VERIFICATION.md).
+
+Call twice inside the dedup window and assert one billable session, not two.
+
+Record what you checked. A graded run reports this fixture as **NOT VERIFIED**,
+and an unrecorded manual pass is indistinguishable from one that never
+happened.

@@ -43,3 +43,17 @@ Trigger the rollup manually, then read the three insight rows back.
 - [ ] New reviews after deploy write `periodCounts` buckets on both backends
       (inspect a row: Postgres `period_counts` jsonb / Dynamo
       `pc#<day>#<counter>` attributes)
+
+## How to verify locally
+
+`MANUAL_ONLY` — `grade-run.mjs` reads GitHub, and this fixture asserts on
+DynamoDB. See [`e2e/MANUAL-VERIFICATION.md`](../../e2e/MANUAL-VERIFICATION.md)
+for the session check and the command shapes.
+
+- **Table** — `mergewatch-installation-fp-insights-dev` (the **dev** stage, never prod)
+- **Key** — pk `installationId` · sk `window`
+- **Look at** — `totalFindingsSurfaced` and `totalDisputes` per window, and `7d <= 30d <= 90d`
+
+Record what you checked. A graded run reports this fixture as **NOT VERIFIED**,
+and an unrecorded manual pass is indistinguishable from one that never
+happened.

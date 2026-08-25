@@ -29,3 +29,14 @@ MCP-surface fixture, no fixture PR. Reuses the PR opened by **E2E-01** and needs
 - ❌ `get_review_status` returns a stale review after a re-review.
 - ❌ The conventions resource ignores `conventions:` and always reads `AGENTS.md`.
 - ❌ Reading conventions for a repo outside the key's scope succeeds (see **E2E-71**).
+
+## How to verify locally
+
+`MANUAL_ONLY` — `grade-run.mjs` reads GitHub PR state, and this fixture asserts
+on an MCP endpoint. See [`e2e/MANUAL-VERIFICATION.md`](../../e2e/MANUAL-VERIFICATION.md).
+
+Call the Function URL and assert the `get_review_status` response.
+
+Record what you checked. A graded run reports this fixture as **NOT VERIFIED**,
+and an unrecorded manual pass is indistinguishable from one that never
+happened.

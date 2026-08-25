@@ -54,3 +54,17 @@ WHERE installation_id = '<id>';
 - ❌ Rollup reads or writes the wrong installation's records (cross-install contamination)
 - ❌ A repo deleted mid-window crashes the rollup
 - ❌ Cluster sigToken extraction differs from W10's — analytics should reuse the same helper, not a parallel one
+
+## How to verify locally
+
+`MANUAL_ONLY` — `grade-run.mjs` reads GitHub, and this fixture asserts on
+DynamoDB. See [`e2e/MANUAL-VERIFICATION.md`](../../e2e/MANUAL-VERIFICATION.md)
+for the session check and the command shapes.
+
+- **Table** — `mergewatch-installation-fp-insights-dev` (the **dev** stage, never prod)
+- **Key** — pk `installationId` · sk `window`
+- **Look at** — the rolled-up counters for each window
+
+Record what you checked. A graded run reports this fixture as **NOT VERIFIED**,
+and an unrecorded manual pass is indistinguishable from one that never
+happened.
