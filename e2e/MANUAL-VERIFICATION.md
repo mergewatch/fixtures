@@ -86,3 +86,22 @@ There is nowhere for this to land automatically — that is the point of the
 `NOT VERIFIED` line in a graded run. Note what you checked in the fixture's PR
 or the run's issue. An unrecorded manual pass is indistinguishable from one
 that never happened.
+
+---
+
+## Adding a fixture: advance `e2e-baseline`
+
+Fixture branches are cut from the **`e2e-baseline` tag**, not from `main`. A fixture whose directory was added to `main` after the tag last moved **cannot be applied** — `apply-fixture` resets to the tag, the directory is not there, and the failure reads like a typo.
+
+That is not hypothetical: `97` and `98` were merged, absent from the tag, and the deploy gate's first full-coverage run failed on `98` and blocked production.
+
+After merging a new fixture:
+
+```bash
+git diff --stat e2e-baseline main -- src/     # MUST be empty
+git tag -f e2e-baseline main && git push -f origin e2e-baseline
+```
+
+The `src/` check is the important half. `src/` is the app under review — if the tag moves it, every fixture's baseline shifts and past runs stop being comparable. Harness-only changes (`fixtures/`, `scripts/`, `e2e/`) are always safe to pull in.
+
+`run-suite.sh` now refuses to start when a selected fixture is missing from the tag, and prints this command.
