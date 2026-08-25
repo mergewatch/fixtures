@@ -75,9 +75,33 @@ const repo = manifest.repo && manifest.repo !== 'unknown'
   ? manifest.repo
   : gh(['repo', 'view', '--json', 'nameWithOwner', '--jq', '.nameWithOwner']).trim();
 
+/**
+ * A fixture whose `expect.json` says `check: "none"` will NEVER get a check
+ * run — that is the assertion. E2E-04 (`autoReview: false`) and E2E-76b (both
+ * triggers off) are silent skips: zero PR trace, by design.
+ *
+ * Polling for a check that cannot appear burns the whole timeout and then
+ * reports it `absent`, which reads as "webhooks are broken". The first
+ * full-coverage gate run hit exactly this — every earlier run happened to
+ * select only fixtures that do produce a check.
+ */
+function expectsNoCheck(fixture) {
+  try {
+    return JSON.parse(readFileSync(`fixtures/${fixture}/expect.json`, 'utf8')).check === 'none';
+  } catch {
+    return false; // no expectation recorded — wait, and let the timeout report it
+  }
+}
+
 // Fixtures with no PR (manual, reuse, or failed to apply) have nothing to wait
 // for. Excluding them here keeps a failed apply from stalling the whole wait.
-const targets = (manifest.fixtures ?? []).filter((f) => f.pr != null);
+const withPr = (manifest.fixtures ?? []).filter((f) => f.pr != null);
+const checkless = withPr.filter((f) => expectsNoCheck(f.fixture));
+const targets = withPr.filter((f) => !expectsNoCheck(f.fixture));
+if (checkless.length) {
+  console.log(`Not waiting on ${checkless.length} silent-skip fixture(s) — they assert `
+    + `NO check run: ${checkless.map((f) => f.fixture).join(', ')}`);
+}
 if (!targets.length) {
   console.log('No fixture PRs to wait for.');
   process.exit(0);
