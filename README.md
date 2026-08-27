@@ -121,6 +121,42 @@ deliberate behaviors there:
 
 Always `--dry-run` first. A full run opens ~98 real PRs and spends real money.
 
+## Keeping `e2e-baseline` in step (mergewatch.ai#509)
+
+Fixture branches are cut from the **`e2e-baseline` tag**, so every push carries
+that tag's `.github/workflows/`. A token without `workflow` scope — which is
+what the E2E gate uses — is rejected the moment those files differ from `main`:
+
+```
+! [remote rejected] fixture/01-clean-pr -> fixture/01-clean-pr
+  (refusing to allow a Personal Access Token to create or update workflow
+   `.github/workflows/release-suite.yml` without `workflow` scope)
+```
+
+**Every fixture fails, `0 applied`** — which reads as a product-wide regression
+rather than a stale pointer. It has cost real time once: a two-line trigger
+removal took the gate down four minutes later and blocked production for two
+commits.
+
+`run-suite.sh` now preflights this and stops before pushing anything, naming
+the fix. So: **after any change to `.github/workflows/` here, advance the tag.**
+
+```bash
+git diff --stat e2e-baseline main -- src/   # MUST be empty first
+git tag -f e2e-baseline main && git push -f origin e2e-baseline
+```
+
+The `src/` check is not optional — it is the app under review, and moving it
+means past runs stop being comparable. Everything else the tag picks up
+(`scripts/`, `meta.env`, docs) is harness and is meant to move.
+
+`ALLOW_WORKFLOW_DRIFT=1` skips the preflight. That is legitimate for a local
+run — a `gh auth` token usually *does* carry `workflow` scope — and is not a
+way to run the gate.
+
+> Advancing the tag also activates any `meta.env` added since it last moved.
+> Flags on fixtures that predate the tag are inert, including in CI.
+
 ## One run at a time (mergewatch.ai#506)
 
 **This repo is a single shared resource, not a workspace per run.** `reset-env.sh`

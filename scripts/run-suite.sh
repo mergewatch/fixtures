@@ -129,6 +129,15 @@ if git rev-parse -q --verify e2e-baseline >/dev/null 2>&1; then
   fi
 fi
 
+# --- preflight: the baseline's workflow files must match origin/main ---------
+#
+# Same class as the check above — a stale tag — but it fails differently and
+# far more expensively: the push is rejected rather than the overlay missing,
+# so EVERY fixture dies and the run reads as a product-wide regression rather
+# than a stale pointer (mergewatch.ai#509). Checked once here instead of
+# discovered 22 times, 45 seconds apart.
+"$REPO_ROOT/scripts/check-baseline-drift.sh" || exit $?
+
 echo "→ Running suite: $TOTAL fixture(s)."
 
 PASS=(); FAIL=(); PREREQ_SKIPPED=()
