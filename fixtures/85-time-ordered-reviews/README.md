@@ -50,9 +50,25 @@ rows older than 30 days.
 DynamoDB. See [`e2e/MANUAL-VERIFICATION.md`](../../e2e/MANUAL-VERIFICATION.md)
 for the session check and the command shapes.
 
-- **Table** — `mergewatch-installation-fp-insights-dev` (the **dev** stage, never prod)
-- **Key** — pk `installationId` · sk `window`
-- **Look at** — ordering of the contributing records
+- **Table** — `mergewatch-reviews-dev` (the **dev** stage, never prod)
+- **Key** — pk `repoFullName` · sk `prNumberCommitSha` (`{pr}#{sha}`)
+- **Index** — `ByRepoCreatedAt`, pk `repoFullName` · sk `createdAt` — the one
+  actually under test; the base table's SK is what sorts `"9#…"` above `"100#…"`
+- **Look at** — that the GSI read returns `createdAt`-descending order, and that
+  a date-bounded read counts every matching row rather than whatever survived
+  the first unfiltered page
+
+```bash
+aws dynamodb query --profile mergewatch --region us-west-2 \
+  --table-name mergewatch-reviews-dev --index-name ByRepoCreatedAt \
+  --key-condition-expression 'repoFullName = :r' \
+  --expression-attribute-values '{":r": {"S": "mergewatch/fixtures"}}' \
+  --no-scan-index-forward --limit 10 \
+  --query 'Items[].[createdAt.S,prNumberCommitSha.S]' --output text
+```
+
+Compare that ordering against the same query without `--index-name`: the base
+table returns PR-number-string order, which is the bug this fixture pins.
 
 Record what you checked. A graded run reports this fixture as **NOT VERIFIED**,
 and an unrecorded manual pass is indistinguishable from one that never

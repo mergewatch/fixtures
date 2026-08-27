@@ -17,7 +17,10 @@ Branch: `fixture/55-ttm-capture`.
 
 **SaaS (DynamoDB)**:
 ```bash
-aws dynamodb scan --table-name mergewatch-pr-lifecycle-prod
+aws dynamodb query --profile mergewatch --region us-west-2 \
+  --table-name mergewatch-pr-lifecycle-dev \
+  --key-condition-expression 'pk = :p' \
+  --expression-attribute-values '{":p": {"S": "<installation-id>#mergewatch/fixtures"}}'
 ```
 
 **Self-hosted (Postgres)**:

@@ -17,7 +17,7 @@ Pre-seed an installation with ~15 lifecycle rows: a mix of reviewed-merged, unre
 **SaaS (Lambda)**:
 ```bash
 aws lambda invoke \
-  --function-name mergewatch-insights-rollup-prod \
+  --function-name mergewatch-insights-rollup-dev \
   --payload '{"installationId": "<id>"}' \
   /tmp/rollup-output.json && cat /tmp/rollup-output.json
 ```

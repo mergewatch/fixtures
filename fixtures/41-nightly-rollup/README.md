@@ -15,7 +15,7 @@ Pre-seed an installation with ~20 `FindingDispositionRecord` rows spanning 3 rep
 **SaaS (Lambda)**:
 ```bash
 aws lambda invoke \
-  --function-name mergewatch-insights-rollup-prod \
+  --function-name mergewatch-insights-rollup-dev \
   --payload '{"installationId": "<your-installation-id>"}' \
   /tmp/rollup-output.json && cat /tmp/rollup-output.json
 ```
@@ -31,7 +31,10 @@ curl -X POST \
 
 **SaaS (DynamoDB)**:
 ```bash
-aws dynamodb scan --table-name mergewatch-installation-fp-insights-prod
+aws dynamodb query --profile mergewatch --region us-west-2 \
+  --table-name mergewatch-installation-fp-insights-dev \
+  --key-condition-expression 'installationId = :i' \
+  --expression-attribute-values '{":i": {"S": "<your-installation-id>"}}'
 ```
 
 **Self-hosted (Postgres)**:

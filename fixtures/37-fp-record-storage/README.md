@@ -16,17 +16,26 @@ Reuse an existing multi-finding PR:
 
 **SaaS (DynamoDB)**:
 ```bash
-aws dynamodb scan \
-  --table-name mergewatch-finding-disposition-prod \
+INSTALL_ID=$(aws dynamodb scan --profile mergewatch --region us-west-2 \
+  --table-name mergewatch-installations-dev \
   --filter-expression 'repoFullName = :r' \
-  --expression-attribute-values '{":r": {"S": "santthosh/mergewatch-fixtures"}}'
+  --expression-attribute-values '{":r": {"S": "mergewatch/fixtures"}}' \
+  --query 'Items[0].installationId.S' --output text)
+
+aws dynamodb query --profile mergewatch --region us-west-2 \
+  --table-name mergewatch-finding-dispositions-dev \
+  --key-condition-expression 'pk = :p' \
+  --expression-attribute-values "{\":p\": {\"S\": \"$INSTALL_ID#mergewatch/fixtures\"}}"
 ```
+
+The table is keyed `pk`/`sk`; it carries no `repoFullName` attribute, so a scan
+filtering on one returns `[]` however many rows are in it.
 
 **Self-hosted (Postgres)**:
 ```sql
 SELECT finding_match_key, surface_count, dispute_count, verified_count, unverified_count, last_seen
 FROM finding_dispositions
-WHERE repo_full_name = 'santthosh/mergewatch-fixtures'
+WHERE repo_full_name = 'mergewatch/fixtures'
 ORDER BY last_seen DESC;
 ```
 
