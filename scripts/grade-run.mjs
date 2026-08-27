@@ -409,7 +409,10 @@ function unverifiedCorrectness(ranFixtures) {
     if (!tags.includes('correctness')) continue;
     out.push({
       name,
-      manual: /^MANUAL_ONLY=true$/m.test(meta),
+      // Either flag means an unattended run cannot complete it, so both
+      // belong in the manual bucket of the NOT VERIFIED line — counting a
+      // human-step fixture as merely "ungraded" understates why it is unrun.
+      manual: /^MANUAL_ONLY=true$/m.test(meta) || /^NEEDS_HUMAN_STEP=true$/m.test(meta),
       graded: existsSync(`fixtures/${name}/expect.json`),
     });
   }

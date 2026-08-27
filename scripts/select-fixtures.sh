@@ -49,7 +49,18 @@ fixture_field() {  # <fixture> <KEY>
   grep -E "^$2=" "$meta" | head -1 | cut -d= -f2- | tr -d '\r'
 }
 
-is_manual() { [ "$(fixture_field "$1" MANUAL_ONLY)" = "true" ]; }
+# MANUAL_ONLY  — no overlay, no PR at all. The fixture IS the procedure.
+# NEEDS_HUMAN_STEP — opens its PR normally, then waits for a person (or a local
+#   agent) to do something the suite cannot: reply in a thread, add a reaction,
+#   push a follow-up commit. Automated setup, manual completion.
+#
+# Both are excluded from --automated, for the same reason: an unattended run
+# cannot finish them. Only MANUAL_ONLY skips creating the PR — conflating the
+# two would stop these fixtures ever producing the thread a human acts on.
+is_manual() {
+  [ "$(fixture_field "$1" MANUAL_ONLY)" = "true" ] \
+    || [ "$(fixture_field "$1" NEEDS_HUMAN_STEP)" = "true" ]
+}
 
 # Keeps or drops one fixture by --automated / --manual. No filter set keeps all.
 automation_ok() {

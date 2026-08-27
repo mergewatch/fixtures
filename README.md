@@ -76,6 +76,25 @@ and **4 are already `MODE=pr` — automatable today, just never wired**
 (`47-suggest-rule`, `48-known-fp-injection`, `58-engagement-resolve`,
 `61-helpful-prompt`).
 
+### `MANUAL_ONLY` vs `NEEDS_HUMAN_STEP`
+
+Two different reasons a fixture cannot run unattended. Both are excluded from
+`--automated` and both count as *manual* in the grader's NOT VERIFIED line, but
+they behave differently when applied:
+
+| flag | opens its PR? | use when |
+|---|---|---|
+| `MANUAL_ONLY=true` | **no** — prints the procedure and exits | the fixture has no PR of its own: it reuses another fixture's PR, or asserts table/dashboard state directly |
+| `NEEDS_HUMAN_STEP=true` | **yes** — normal overlay and PR, then prints `POST_OPEN_HINT` | automated setup, manual completion: someone must reply in a thread, add a reaction, or push a follow-up commit before the fixture means anything |
+
+Do not use `MANUAL_ONLY` for the second case. It stops the PR being created,
+so there is no thread for anyone to act on — the fixture becomes unrunnable
+rather than manual.
+
+Currently `NEEDS_HUMAN_STEP`: `35-inline-resolve`, `39-inline-reactions`,
+`40-mergewatch-reject`. Each opens its PR, waits for the review, and then needs
+a person — or a local agent — to perform the step in `POST_OPEN_HINT`.
+
 ```bash
 # See what a selection resolves to — costs nothing
 scripts/select-fixtures.sh --tag agents
