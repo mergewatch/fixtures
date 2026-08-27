@@ -1,0 +1,8 @@
+{
+  "_source": "README Expected outcomes — E2E-49, AUTOMATED HALF ONLY. FP-H is an anti-anchoring property of the SECOND review: it needs the manual fix commit plus the unrelated-file edit, and its assertion is the absence of round-1 framing on a file that has no error-handling code. Asserted here: round 1 produces the error-handling findings on src/worker.ts that the manual half depends on.",
+  "comment": "present",
+  "score": {
+    "min": 1,
+    "max": 5
+  }
+}

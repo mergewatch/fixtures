@@ -1,0 +1,7 @@
+{
+  "_source": "README Expected outcomes — E2E-29. The clustered block is product-rendered boilerplate (W10's audit trail), not model prose, so the literal is stable. src/seed.ts is shaped to draw 4 criticals + 1 warning in one code region specifically so clustering has something to merge. Asserts the audit trail exists, NOT the count of absorbed siblings or which finding won — those are model judgement.",
+  "comment": "present",
+  "mustContain": [
+    "Related concerns clustered into this finding"
+  ]
+}

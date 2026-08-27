@@ -1,0 +1,8 @@
+{
+  "_source": "README Expected outcomes — E2E-16. Every stated outcome is internal: the classification log line and the persisted `source: 'agent', agentKind: 'claude'` record. The README itself notes the comment renders with 'no visible difference'. What IS mechanical is that a `claude/*` branch reviews normally — the agent-mode prompt suffix must not break or skip the review. Stored-record and prompt-tone checks stay manual.",
+  "comment": "present",
+  "score": {
+    "min": 1,
+    "max": 5
+  }
+}

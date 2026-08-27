@@ -1,0 +1,9 @@
+{
+  "_source": "README Expected outcomes — E2E-80a. As applied there is no `conventions:` key, so AGENTS.md must win and the other three candidates must never be fetched. Each candidate carries a unique marker, making resolution directly readable from the comment. Asserted one-sided as the absence of the three LOSING markers rather than the presence of MARKER-AGENTS: absence is a property of the resolver (first hit wins, later candidates never read), whereas presence would additionally require the model to cite the rule it was given. The walk down the chain needs pushes between steps and stays manual.",
+  "comment": "present",
+  "mustNotContain": [
+    "MARKER-CONVENTIONS",
+    "MARKER-DOTDIR",
+    "MARKER-HOUSE"
+  ]
+}

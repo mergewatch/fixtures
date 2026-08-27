@@ -1,0 +1,8 @@
+{
+  "_source": "README Expected outcomes — E2E-14, AUTOMATED HALF ONLY. The contract (no reply in a thread not rooted in a MergeWatch comment) needs a human to open that thread after the review lands, and the skip reason is a log line. Neither is in final PR state. Asserted here: the PR reviews normally, so a run where this fixture never got reviewed is not silently read as 'MergeWatch correctly stayed quiet'.",
+  "comment": "present",
+  "score": {
+    "min": 1,
+    "max": 5
+  }
+}

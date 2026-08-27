@@ -1,0 +1,7 @@
+{
+  "_source": "README Expected outcomes — E2E-27. W11's contract is deterministic given the declaration: AGENTS.md says 'No unit test suite currently', so the per-function test-coverage nag must collapse into one info note. Asserted one-sided as the absence of the nag wording rather than the presence of the rollup note, because the README states the note's title is a 'close paraphrase' — a literal match on model-authored prose would flake. This can only fail if suppression regresses and the P5 nag-wave returns.",
+  "comment": "present",
+  "mustNotContain": [
+    "lacks test coverage"
+  ]
+}

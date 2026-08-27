@@ -1,0 +1,8 @@
+{
+  "_source": "README Expected outcomes — E2E-31, AUTOMATED HALF ONLY. FP-B is a prefilter on the re-review's previousFindings payload — it needs the manual rebuttal plus a no-op push, and its outcomes are a smaller log payload and the ABSENCE of a suppression line. Asserted here: the first review produces the data-access finding the manual half rebuts.",
+  "comment": "present",
+  "score": {
+    "min": 1,
+    "max": 5
+  }
+}

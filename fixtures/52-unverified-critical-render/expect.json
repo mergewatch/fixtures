@@ -1,0 +1,7 @@
+{
+  "_source": "README Expected outcomes — E2E-52, NARROWED. fixtures#1076 suggested mustContain 'Unverified concerns' — deliberately not taken, because this fixture's own README says the live path is stochastic: FP-K may drop the store.query critical as valid:false, and the verifier may confirm rather than fail to confirm it, in which case NO unverified section is correct. The README states the clean repro needs the W2 verifier mocked. What is mechanical is W7's clamp, which E2E-25 already grades: an unverified critical must not produce a blocking verdict.",
+  "comment": "present",
+  "mustNotContain": [
+    "Needs fixes"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "_source": "README Step 2 precondition — E2E-40, SETUP HALF ONLY. FB-D's outcomes are rejectReasons[] entries, category coercion and the bot's confirming reply — all downstream of a human typing the slash command in an inline thread. Asserted here: that thread exists to reply in. All three share one bait file — src/admin-endpoint.ts, an unauthenticated admin endpoint the README calls out as reliably drawing an inline-comment-eligible Critical — so the setup half is deterministic in the same way E2E-03 and E2E-28b are. NEEDS_HUMAN_STEP means automated setup, manual completion: the setup half is gradeable and was costing a real PR and a real review while asserting nothing (fixtures#1076).",
+  "comment": "present",
+  "findings": {
+    "critical": {
+      "min": 1
+    }
+  },
+  "inlineComments": {
+    "min": 1
+  }
+}

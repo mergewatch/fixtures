@@ -1,0 +1,7 @@
+{
+  "_source": "README Expected outcomes — E2E-80b. docs/house-rules.md is oversized on purpose with EARLY-RULE inside the 16 KB cap and LATE-RULE past it. The cap is a byte-offset truncation, so content past it cannot reach the agents at all — asserting LATE-RULE's absence tests the truncation itself, not the model. One-sided by design: EARLY-RULE's presence would also require the model to cite the rule it was given, which is judgement. `comment: present` carries the other stated outcome — an over-cap file must not fail or stall the review.",
+  "comment": "present",
+  "mustNotContain": [
+    "LATE-RULE"
+  ]
+}

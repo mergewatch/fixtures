@@ -1,0 +1,12 @@
+{
+  "_source": "README Expected outcomes — E2E-81, NARROWED per fixtures#1076's own note. The stated outcomes are budget log lines ([input-budget] dropped N, round counts, fetched-file list) and grade-run.mjs reads GitHub, not CloudWatch. The sharper property — that with awareness OFF an agent says it cannot see src/utils.ts rather than fabricating its contents — is a claim about model prose and cannot be asserted without judging wording. Asserted here: bounded codebase-aware review completes rather than stalling on the fetch budget, and leaves no error text.",
+  "comment": "present",
+  "score": {
+    "min": 1,
+    "max": 5
+  },
+  "mustNotContain": [
+    "Input is too long",
+    "encountered an error"
+  ]
+}

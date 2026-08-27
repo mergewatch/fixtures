@@ -1,0 +1,8 @@
+{
+  "_source": "README Expected outcomes — E2E-24, AUTOMATED HALF ONLY. The contract is that a triage comment from a NON-author is ignored, which needs a second account to comment and a re-review; every stated outcome is a log line or a non-event ('no [triage-suppressed] line', 'mapping LLM call not made'). Asserted here: the first review lands, so the warning the manual half depends on actually exists.",
+  "comment": "present",
+  "score": {
+    "min": 1,
+    "max": 5
+  }
+}

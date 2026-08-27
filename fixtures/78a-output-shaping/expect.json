@@ -1,0 +1,10 @@
+{
+  "_source": "README Expected outcomes — E2E-78a, first rung of the ladder. The overlay ships minSeverity: warning, so info findings must be filtered out — a deterministic config-driven filter, not a judgement about what the model found. src/mixed-severity.ts is built to produce all three tiers, so `info: 0` can only pass because the filter ran. maxFindings: 3 caps the POSTED set, asserted via inline comments; that the survivors are the top-RANKED (criticals defined last in the file on purpose) needs a diff against the unfiltered run and stays manual, as do the remaining rungs.",
+  "comment": "present",
+  "findings": {
+    "info": 0
+  },
+  "inlineComments": {
+    "max": 3
+  }
+}
