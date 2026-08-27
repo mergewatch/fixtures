@@ -11,14 +11,20 @@
 #   scripts/seed-org-agent.sh --enforcement blocking   # for the manual step-3 walk
 #   scripts/seed-org-agent.sh --verify            # exit 0 if row+agent present, 3 if not
 #
+# Seeds the **dev** stage. This script writes — the `#AGENTS` sentinel is a
+# put-item on the installations table — and the fixtures repo is installed in
+# both stages, so a prod default put a write one env-var away from the real
+# installations table (fixtures#1142). Point it at prod deliberately or not at
+# all: `TABLE=mergewatch-installations-prod scripts/seed-org-agent.sh`.
+#
 # Env overrides:
-#   TABLE            (default mergewatch-installations-prod)
+#   TABLE            (default mergewatch-installations-dev)
 #   AWS_PROFILE      (default mergewatch)
 #   AWS_REGION       (default us-west-2)
 #   INSTALLATION_ID  (default: auto-discovered by scanning TABLE for this repo)
 set -euo pipefail
 
-TABLE="${TABLE:-mergewatch-installations-prod}"
+TABLE="${TABLE:-mergewatch-installations-dev}"
 export AWS_PROFILE="${AWS_PROFILE:-mergewatch}"
 export AWS_REGION="${AWS_REGION:-us-west-2}"
 

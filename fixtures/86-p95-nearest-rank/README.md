@@ -29,13 +29,23 @@ Dashboard-inspection fixture, no fixture PR.
 
 ## How to verify locally
 
-`MANUAL_ONLY` — `grade-run.mjs` reads GitHub, and this fixture asserts on
-DynamoDB. See [`e2e/MANUAL-VERIFICATION.md`](../../e2e/MANUAL-VERIFICATION.md)
-for the session check and the command shapes.
+`MANUAL_ONLY` — `grade-run.mjs` reads GitHub, and this fixture asserts on the
+**analytics API**, not on a table. See
+[`e2e/MANUAL-VERIFICATION.md`](../../e2e/MANUAL-VERIFICATION.md) for the session
+check.
 
-- **Table** — `mergewatch-installation-fp-insights-dev` (the **dev** stage, never prod)
-- **Key** — pk `installationId` · sk `window`
-- **Look at** — the p95 value against the nearest-rank definition
+- **Surface** — `/dashboard/analytics` → Activity tab, and the `/api/analytics`
+  response beneath it. Prefer the API: the assertion is a number.
+- **Look at** — `p95Ms`. Below 20 completed reviews it must be `null` (UI: "—"
+  plus the tooltip, no P95 bar). At exactly 20 distinct durations it must equal
+  the **second-highest** value — nearest rank `⌈20 × 0.95⌉ = 19` — not the
+  maximum.
+- **Cross-check** — the durations feeding it are completed rows in
+  `mergewatch-reviews-dev` (pk `repoFullName` · sk `prNumberCommitSha`). Use
+  them to hand-compute the expected rank; there is no p95 stored anywhere to
+  read back.
+
+A p95 equal to the slowest review is the failure, not the pass.
 
 Record what you checked. A graded run reports this fixture as **NOT VERIFIED**,
 and an unrecorded manual pass is indistinguishable from one that never

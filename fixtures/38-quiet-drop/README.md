@@ -31,9 +31,19 @@ git commit -am 'unrelated: bump notes' && git push
 
 ## Verifying the DB state
 
-SaaS (DynamoDB): `aws dynamodb get-item --table-name mergewatch-finding-disposition-prod --key '{ "...":{...} }'` (key shape per `FindingDispositionRecord`).
+SaaS (DynamoDB) — the table is keyed `pk`/`sk` (`{installationId}#{owner}/{repo}`
+· the finding key), and carries no `repoFullName` attribute to filter on:
 
-Self-hosted (Postgres): `SELECT surface_count, dispute_count, silent_drop_count FROM finding_dispositions WHERE repo_full_name = 'santthosh/mergewatch-fixtures' AND finding_match_key = '<key>';`
+```bash
+aws dynamodb get-item --profile mergewatch --region us-west-2 \
+  --table-name mergewatch-finding-dispositions-dev \
+  --key '{"pk": {"S": "<installation-id>#mergewatch/fixtures"}, "sk": {"S": "<finding-key>"}}'
+```
+
+List the partition first if you do not know the finding key — swap `get-item`
+for `query --key-condition-expression 'pk = :p'`.
+
+Self-hosted (Postgres): `SELECT surface_count, dispute_count, silent_drop_count FROM finding_dispositions WHERE repo_full_name = 'mergewatch/fixtures' AND finding_match_key = '<key>';`
 
 ## Failure modes
 

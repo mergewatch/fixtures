@@ -34,13 +34,22 @@ API-inspection fixture, no fixture PR.
 
 ## How to verify locally
 
-`MANUAL_ONLY` — `grade-run.mjs` reads GitHub, and this fixture asserts on
-DynamoDB. See [`e2e/MANUAL-VERIFICATION.md`](../../e2e/MANUAL-VERIFICATION.md)
-for the session check and the command shapes.
+`MANUAL_ONLY` — `grade-run.mjs` reads GitHub, and this fixture asserts on the
+**`/api/analytics` route**, not on a table. See
+[`e2e/MANUAL-VERIFICATION.md`](../../e2e/MANUAL-VERIFICATION.md) for the session
+check.
 
-- **Table** — `mergewatch-installation-fp-insights-dev` (the **dev** stage, never prod)
-- **Key** — pk `installationId` · sk `window`
-- **Look at** — the inclusive/exclusive day bounds
+- **Surface** — `/api/analytics?start_date=…&end_date=…`, called directly so the
+  parameters are exactly what you typed (the dashboard sends full instants).
+- **Look at** — that a date-only `end_date` includes that whole day
+  (normalized to `T23:59:59.999Z`) and a date-only `start_date` the whole first
+  day (`T00:00:00.000Z`), while a full timestamp passes through unwidened.
+- **Cross-check** — the in-range row count from `mergewatch-reviews-dev` via the
+  `ByRepoCreatedAt` GSI (pk `repoFullName` · sk `createdAt`), which is where the
+  bounds are applied. Totals must match exactly.
+
+Run the same parameters against both backends: DynamoDB and Postgres are
+supposed to be identical by construction, so a divergence is the finding.
 
 Record what you checked. A graded run reports this fixture as **NOT VERIFIED**,
 and an unrecorded manual pass is indistinguishable from one that never
