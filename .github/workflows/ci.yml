@@ -1,0 +1,51 @@
+# Unit tests for the harness scripts (mergewatch.ai#506).
+#
+# This repo had no CI at all. That was defensible while `scripts/` was pure
+# shell driving real PRs — there was nothing to assert without spending LLM
+# budget. It stopped being defensible once the scripts started making
+# JUDGEMENTS: `await-reviews.mjs` now decides whether a run was torn down by a
+# concurrent suite, and that decision compares a `gh --json` field name against
+# a literal. Either half can be misspelled without anything failing — the guard
+# just never fires, and the failure it exists to explain goes back to looking
+# like a webhook outage.
+#
+# Deliberately narrow. This runs `node --test` and nothing else: no fixtures,
+# no PRs, no LLM spend. The suite itself is driven from mergewatch.ai, which is
+# the only repo allowed to touch this one's fixture branches — see the
+# `e2e-fixtures` concurrency group there.
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/**'
+      - '.github/workflows/ci.yml'
+  pull_request:
+    paths:
+      - 'scripts/**'
+      - '.github/workflows/ci.yml'
+
+# Path-filtered, so this never fires on a `fixture/*` PR: those branches are cut
+# from the e2e-baseline tag and carry no scripts/ changes. A suite run must not
+# add 98 check runs to its own PRs.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Script unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: node --test
+        # The glob is quoted so the runner's shell does not expand it: node's
+        # test runner needs the pattern, and `scripts/` as a bare directory
+        # would try to execute apply-fixture.sh and friends as tests.
+        run: node --test "scripts/*.test.mjs"

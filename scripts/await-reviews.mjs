@@ -23,10 +23,17 @@
  * each PR's actual state, because "3 stuck at queued" and "3 never got a check
  * run" have completely different causes: the first is a slow or dead-lettered
  * queue, the second means webhooks are not arriving at all.
+ *
+ * Exits 2 if the PRs are torn down underneath it (mergewatch.ai#506). That is
+ * a third cause with a third fix, and it used to be indistinguishable from the
+ * second: a concurrent run's reset-env.sh closes these PRs, every poll after
+ * that reports `absent`, and the run burns its full timeout before blaming
+ * webhooks that were working fine. See scripts/pr-liveness.mjs.
  */
 
 import { execFileSync } from 'node:child_process';
 import { readFileSync, existsSync } from 'node:fs';
+import { checkStateFrom, isLive, tornDown, tornDownReport } from './pr-liveness.mjs';
 
 const argv = process.argv.slice(2);
 const flag = (name, fallback) => {
@@ -47,21 +54,26 @@ function gh(args) {
   return execFileSync('gh', args, { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });
 }
 
-/** Current state of this PR's stage check: absent | queued | in_progress | completed. */
-function checkState(repo, pr) {
-  let rollup;
+/**
+ * This PR's stage-check state plus whether the PR is still open.
+ *
+ * Both come out of ONE `gh pr view`: liveness is a field on the same payload,
+ * so detecting teardown costs no extra API calls in the poll loop.
+ */
+function prStatus(repo, pr) {
+  let view;
   try {
-    rollup = JSON.parse(gh(['pr', 'view', String(pr), '--repo', repo, '--json', 'statusCheckRollup']))
-      .statusCheckRollup ?? [];
+    view = JSON.parse(gh(['pr', 'view', String(pr), '--repo', repo, '--json', 'state,statusCheckRollup']));
   } catch {
-    // A transient API failure is not evidence about the review. Report it as
-    // "absent" so the loop keeps waiting rather than declaring a false verdict.
-    return 'absent';
+    // A transient API failure is not evidence about the review, and it is not
+    // evidence the PR is gone either. Report "absent" plus unknown liveness so
+    // the loop keeps waiting rather than declaring a false verdict either way.
+    return { state: 'absent', live: null };
   }
-  const runs = rollup.filter((c) => c.name === checkName);
-  if (!runs.length) return 'absent';
-  const status = (runs[runs.length - 1].status ?? '').toLowerCase();
-  return status === 'completed' ? 'completed' : (status || 'queued');
+  return {
+    state: checkStateFrom(view.statusCheckRollup, checkName),
+    live: isLive(view.state),
+  };
 }
 
 const sleep = (s) => new Promise((r) => setTimeout(r, s * 1000));
@@ -113,7 +125,18 @@ const deadline = Date.now() + TIMEOUT_S * 1000;
 let states = new Map();
 
 while (Date.now() < deadline) {
-  states = new Map(targets.map((f) => [f.fixture, { pr: f.pr, state: checkState(repo, f.pr) }]));
+  states = new Map(targets.map((f) => [f.fixture, { fixture: f.fixture, pr: f.pr, ...prStatus(repo, f.pr) }]));
+
+  // Before deciding anything about the reviews: are the PRs still there? A PR
+  // this run opened has no legitimate reason to close, so even one is enough.
+  // Fail here rather than waiting out the timeout — every remaining poll would
+  // just accumulate more evidence for the wrong conclusion.
+  const gone = tornDown([...states.values()]);
+  if (gone.length) {
+    for (const line of tornDownReport(gone)) console.error(line);
+    process.exit(2);
+  }
+
   const pending = [...states.values()].filter((s) => s.state !== 'completed');
   if (!pending.length) {
     console.log(`All ${targets.length} review(s) completed.`);
@@ -131,4 +154,6 @@ for (const [fixture, s] of states) {
 }
 console.error('absent = no check run at all (webhook never handled it);'
   + ' queued/in_progress = accepted but not finished (slow or dead-lettered queue).');
+console.error('If everything is `absent`, also check nothing else was driving this repo:'
+  + ' a concurrent run resets it and the PRs would show CLOSED (mergewatch.ai#506).');
 process.exit(1);

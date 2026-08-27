@@ -121,6 +121,43 @@ deliberate behaviors there:
 
 Always `--dry-run` first. A full run opens ~98 real PRs and spends real money.
 
+## One run at a time (mergewatch.ai#506)
+
+**This repo is a single shared resource, not a workspace per run.** `reset-env.sh`
+closes every open `fixture/*` PR and deletes its branch, and it is not scoped
+to the run that called it — a runner cannot tell its own fixture branches from
+anyone else's. Two suites in flight therefore destroy each other's PRs.
+
+The victim does not fail loudly, it fails *misleadingly*: it waits for check
+runs on PRs that no longer exist and reports a timeout. `await-reviews.mjs`
+now checks whether its own PRs are still open and exits **2** naming the
+teardown, so at least the cause is in the log — but that is a diagnosis, not a
+fix. Do not overlap in the first place.
+
+**In CI this is handled, and not from here.** Every job that drives this repo
+lives in `mergewatch.ai` and holds the `e2e-fixtures` concurrency group, so the
+second one queues instead of colliding:
+
+| workflow (in `mergewatch.ai`) | job | when |
+|---|---|---|
+| `deploy.yml` | `e2e-gate` | every merge to `main` — impacted subset |
+| `release-gate.yml` | `suite` | cutting a release — full graded set |
+
+A single group only works because both live in the *same repository*; GitHub
+concurrency groups do not span repos. That is why this repo no longer has a
+suite workflow of its own: `release-suite.yml` used to run the same fixtures
+under a separate `e2e-suite` group, which serialised it against nothing that
+mattered — two locks, one resource. If you need another automated suite run,
+add it in `mergewatch.ai` and put it in that group.
+
+**Locally it is not handled.** Nothing stops a local `run-suite.sh` from
+colliding with a gate run already in flight. Check first:
+
+```bash
+gh run list --repo mergewatch/mergewatch.ai --workflow=deploy.yml --status in_progress
+gh pr list --state open        # an open fixture/* PR means a run is live
+```
+
 ## Grading a run (#416)
 
 Two layers, deliberately:
