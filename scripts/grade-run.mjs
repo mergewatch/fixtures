@@ -19,6 +19,31 @@
  *   scripts/grade-run.mjs --compare          # grade both, report divergence
  *   scripts/grade-run.mjs --manifest path    # default .e2e/last-run.json
  *   scripts/grade-run.mjs --json             # machine-readable output
+ *   scripts/grade-run.mjs --expect-ref HEAD  # expectations from HEAD, not origin/main
+ *   scripts/grade-run.mjs --expect-ref worktree   # ...from the working tree
+ *
+ * WHERE EXPECTATIONS COME FROM (fixtures#1211)
+ *
+ * Expectations are read from a git ref — `origin/main` by default — NOT from
+ * the working tree. They are a property of the tooling, not of whatever branch
+ * happens to be checked out, and by the time grading runs the tree is usually
+ * neither:
+ *
+ *   - run-suite.sh leaves the repo on the LAST fixture branch, and fixture
+ *     branches are cut from the e2e-baseline tag (apply-fixture.sh).
+ *   - reset-env.sh runs `git reset --hard e2e-baseline` on main, so the local
+ *     main POINTER is the baseline commit too.
+ *
+ * Reading each `fixtures/<name>/expect.json` off that tree grades against
+ * whatever the tag holds. When the tag predates an expectation, the fixture
+ * reports UNGRADED — and UNGRADED does not fail, so the whole thing exits 0.
+ * A green run that asserted nothing is the worst available outcome, and it was
+ * previously reachable with no error anywhere. The gate in mergewatch.ai
+ * worked around this externally with a re-checkout step; the coupling belongs
+ * here.
+ *
+ * Pass `--expect-ref worktree` (or `HEAD`) when iterating on expectations
+ * locally. The resolved source is always printed.
  */
 import { execFileSync } from 'node:child_process';
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
@@ -35,6 +60,7 @@ const MANIFEST = flag('--manifest', '.e2e/last-run.json');
 const COMPARE = has('--compare');
 const AS_JSON = has('--json');
 const STAGE = COMPARE ? null : flag('--stage', null); // null → prod
+const EXPECT_REF = flag('--expect-ref', 'origin/main');
 
 /**
  * Comment marker for a stage. Mirrors packages/core/src/stage.ts upstream —
@@ -297,6 +323,67 @@ function evaluate(expect, observed) {
   return fail;
 }
 
+// --- Where expectations are read from (fixtures#1211) -----------------------
+/** Run a git command, returning stdout, or null when git itself fails. */
+function git(args) {
+  try {
+    return execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Resolve the ref expectations are read from.
+ *
+ * Falls back to the working tree rather than dying when the ref does not
+ * exist — a fresh clone with no `origin/main`, or a detached CI checkout —
+ * because refusing to grade at all would be a worse failure than grading from
+ * the tree and saying so. The fallback is announced, never silent.
+ */
+function resolveExpectSource(ref) {
+  if (ref === 'worktree') return { kind: 'worktree', label: 'working tree' };
+  const sha = git(['rev-parse', '--verify', '--quiet', `${ref}^{commit}`])?.trim();
+  if (sha) return { kind: 'ref', ref, sha, label: `${ref} @ ${sha.slice(0, 7)}` };
+  const fallback = ref === 'origin/main' ? git(['rev-parse', '--verify', '--quiet', 'main^{commit}'])?.trim() : null;
+  if (fallback) {
+    return { kind: 'ref', ref: 'main', sha: fallback, label: `main @ ${fallback.slice(0, 7)} (no ${ref})` };
+  }
+  return { kind: 'worktree', label: `working tree (no ${ref})` };
+}
+
+const SOURCE = resolveExpectSource(EXPECT_REF);
+
+/** File content from the expectation source, or null when absent. */
+function sourceRead(path) {
+  if (SOURCE.kind === 'worktree') {
+    try {
+      return readFileSync(path, 'utf8');
+    } catch {
+      return null;
+    }
+  }
+  return git(['show', `${SOURCE.ref}:${path}`]);
+}
+
+/** Fixture directory names from the expectation source. */
+function sourceFixtureDirs() {
+  if (SOURCE.kind === 'worktree') {
+    try {
+      return readdirSync('fixtures', { withFileTypes: true })
+        .filter((d) => d.isDirectory()).map((d) => d.name);
+    } catch {
+      return [];
+    }
+  }
+  const out = git(['ls-tree', '-d', '--name-only', SOURCE.ref, 'fixtures/']);
+  if (!out) return [];
+  return out.split('\n').filter(Boolean).map((l) => l.replace(/^fixtures\//, ''));
+}
+
+const expectCount = sourceFixtureDirs()
+  .filter((n) => sourceRead(`fixtures/${n}/expect.json`) != null).length;
+
 // --- Observation ------------------------------------------------------------
 function observe(pr, repo, prNumber, stage) {
   const comment = findBotComment(pr, stage);
@@ -327,6 +414,31 @@ const repo = manifest.repo && manifest.repo !== 'unknown'
   ? manifest.repo
   : gh(['repo', 'view', '--json', 'nameWithOwner', '--jq', '.nameWithOwner']).trim();
 
+/**
+ * The guard this whole indirection exists for (fixtures#1211).
+ *
+ * `UNGRADED` does not fail and does not set the exit code, so a source with no
+ * expectations at all grades every fixture as UNGRADED and exits 0 — a green
+ * run that asserted nothing. There is no state in which that fails on its own,
+ * which is why it has to be checked explicitly rather than left to the tally.
+ *
+ * Zero expectations against a non-empty manifest is never a legitimate
+ * configuration: it means the source is wrong, not that nobody has written an
+ * expectation yet.
+ */
+const gradeable = (manifest.fixtures ?? []).filter((e) => e.pr != null && e.applied !== 'skipped-missing-prereq');
+if (gradeable.length && expectCount === 0) {
+  console.error(`No expect.json found in ${SOURCE.label}, but the manifest lists `
+    + `${gradeable.length} gradeable fixture(s).`);
+  console.error('Every fixture would grade UNGRADED and this run would exit 0 — refusing.');
+  console.error('');
+  console.error('Most likely the expectation source predates the tooling. run-suite.sh leaves');
+  console.error('the repo on the last fixture branch (cut from e2e-baseline), and reset-env.sh');
+  console.error('resets main to that tag. Try:');
+  console.error('  git fetch origin main && scripts/grade-run.mjs --expect-ref origin/main');
+  process.exit(2);
+}
+
 const results = [];
 for (const entry of manifest.fixtures ?? []) {
   const base = { fixture: entry.fixture, pr: entry.pr };
@@ -340,12 +452,20 @@ for (const entry of manifest.fixtures ?? []) {
     continue;
   }
 
-  const expectPath = `fixtures/${entry.fixture}/expect.json`;
-  if (!existsSync(expectPath)) {
-    results.push({ ...base, verdict: 'UNGRADED', notes: ['no expect.json — LLM rubric only'] });
+  const raw = sourceRead(`fixtures/${entry.fixture}/expect.json`);
+  if (raw == null) {
+    results.push({ ...base, verdict: 'UNGRADED', notes: [`no expect.json in ${SOURCE.label} — LLM rubric only`] });
     continue;
   }
-  const expect = JSON.parse(readFileSync(expectPath, 'utf8'));
+  let expect;
+  try {
+    expect = JSON.parse(raw);
+  } catch (err) {
+    // Malformed JSON is a broken assertion, not an absent one. UNGRADED would
+    // exit 0 and read as "nobody wrote one yet".
+    results.push({ ...base, verdict: 'ERROR', notes: [`expect.json is not valid JSON: ${err.message}`] });
+    continue;
+  }
 
   let pr;
   try {
@@ -396,21 +516,14 @@ for (const entry of manifest.fixtures ?? []) {
 function unverifiedCorrectness(ranFixtures) {
   const ran = new Set(ranFixtures);
   const out = [];
-  let dirs;
-  try {
-    dirs = readdirSync('fixtures', { withFileTypes: true })
-      .filter((d) => d.isDirectory()).map((d) => d.name);
-  } catch {
-    return out; // not run from the fixtures repo root — say nothing rather than guess
-  }
+  // Same source as the expectations themselves — otherwise this line counts
+  // the tag's fixture set while the grading above used origin/main's.
+  const dirs = sourceFixtureDirs();
+  if (!dirs.length) return out; // nothing resolvable — say nothing rather than guess
   for (const name of dirs.sort()) {
     if (ran.has(name)) continue;
-    let meta = '';
-    try {
-      meta = readFileSync(`fixtures/${name}/meta.env`, 'utf8');
-    } catch {
-      continue;
-    }
+    const meta = sourceRead(`fixtures/${name}/meta.env`);
+    if (meta == null) continue;
     const tags = (/^TAGS=(.*)$/m.exec(meta)?.[1] ?? '').split(',').map((t) => t.trim());
     if (!tags.includes('correctness')) continue;
     out.push({
@@ -419,7 +532,7 @@ function unverifiedCorrectness(ranFixtures) {
       // belong in the manual bucket of the NOT VERIFIED line — counting a
       // human-step fixture as merely "ungraded" understates why it is unrun.
       manual: /^MANUAL_ONLY=true$/m.test(meta) || /^NEEDS_HUMAN_STEP=true$/m.test(meta),
-      graded: existsSync(`fixtures/${name}/expect.json`),
+      graded: sourceRead(`fixtures/${name}/expect.json`) != null,
     });
   }
   return out;
@@ -427,8 +540,23 @@ function unverifiedCorrectness(ranFixtures) {
 
 // --- Report -----------------------------------------------------------------
 if (AS_JSON) {
-  console.log(JSON.stringify({ repo, stage: STAGE ?? (COMPARE ? 'compare' : 'prod'), results }, null, 2));
+  console.log(JSON.stringify({
+    repo,
+    stage: STAGE ?? (COMPARE ? 'compare' : 'prod'),
+    expectations: { source: SOURCE.label, kind: SOURCE.kind, count: expectCount },
+    results,
+  }, null, 2));
 } else {
+  // Always stated. The failure this guards against is not "wrong answer" but
+  // "answer from somewhere you didn't expect", and that is only catchable if
+  // the source is on screen next to the tally.
+  const head = git(['rev-parse', '--abbrev-ref', 'HEAD'])?.trim();
+  const headSha = git(['rev-parse', '--short', 'HEAD'])?.trim();
+  const detachedNote = SOURCE.kind === 'ref' && headSha && !SOURCE.sha.startsWith(headSha)
+    ? `  (working tree is at ${head === 'HEAD' ? headSha : `${head} ${headSha}`} — not used)`
+    : '';
+  console.log(`expectations: ${SOURCE.label} · ${expectCount} expect.json${detachedNote}`);
+  console.log('');
   const ICON = { PASS: '✓', FAIL: '✗', SKIP: '⊘', UNGRADED: '·', ERROR: '!' };
   for (const r of results) {
     const pr = r.pr == null ? '' : ` #${r.pr}`;
