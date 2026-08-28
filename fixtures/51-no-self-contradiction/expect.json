@@ -1,0 +1,7 @@
+{
+  "_source": "README Expected outcomes — E2E-51, AUTOMATED HALF ONLY. FP-J suppresses a round-2 critique of the bot's OWN applied advice, which needs the manual fix push. Asserted here is the precondition the manual half rests on: round 1 must actually produce a recommendation, so a clean all-clear verdict means the scenario never set up. This is fixtures#1076's suggested `mustNotContain: [\"All clear\"]`, using the exact literal E2E-01 asserts the presence of.",
+  "comment": "present",
+  "mustNotContain": [
+    "All clear!"
+  ]
+}

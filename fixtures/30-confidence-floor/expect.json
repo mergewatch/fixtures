@@ -1,0 +1,8 @@
+{
+  "_source": "README Expected outcomes — E2E-30, NARROWED. Every stated outcome is invisible from GitHub: the filter drops findings BEFORE render, so a correctly-dropped finding and a never-emitted one look identical in the comment, and the boundary cases (confidence === 75 kept, missing field defaults to 100) need the agent log. Asserting 'no low-confidence finding appears' is unfalsifiable here. The Suppressed count in the review-details table is the manual read.",
+  "comment": "present",
+  "score": {
+    "min": 1,
+    "max": 5
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "_source": "README Expected outcomes — E2E-34, NARROWED. The `verification: 'verified' | 'unverified'` tag lands on the persisted review record, not in the comment, and the fail-safe branches (missing file skips the call, LLM error keeps + tags) need an induced failure. Asserted here: extending W2 to warnings must not break or stall the review — the regression this would most plausibly cause is a timeout from one extra LLM call per warning.",
+  "comment": "present",
+  "score": {
+    "min": 1,
+    "max": 5
+  }
+}

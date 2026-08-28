@@ -1,0 +1,4 @@
+{
+  "_source": "README Expected outcomes — E2E-18a, STATE-LIMITED. 18a and 18b share one PR (18b has PUSH_TO_EXISTING_BRANCH=fixture/18-delta-aware-verdict) and the suite runs both before grading, so by grade time the criticals 18a introduces have been FIXED. Its stated outcomes (>=1 critical, score 1-2, CHANGES_REQUESTED) describe a state that no longer exists and would fail if asserted here. 18a's contract is asserted transitively by 18b's `Previously reported` block: that section can only list resolved criticals if 18a produced them. Asserted here: the PR exists and was reviewed. See fixtures#1076 for the pairing problem.",
+  "comment": "present"
+}

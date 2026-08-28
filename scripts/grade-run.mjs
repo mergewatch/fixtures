@@ -259,6 +259,12 @@ function evaluate(expect, observed) {
   for (const re of expect.mustMatch ?? []) {
     if (!new RegExp(re).test(body)) fail.push(`comment does not match /${re}/`);
   }
+  // The negated form. Needed where the contract is the ABSENCE of a shape
+  // rather than of a fixed string — E2E-19's confidence badge is `XX%` with a
+  // varying number, so mustNotContain cannot express it (fixtures#1076).
+  for (const re of expect.mustNotMatch ?? []) {
+    if (new RegExp(re).test(body)) fail.push(`comment must not match /${re}/`);
+  }
 
   // Where a finding landed, not just that it exists. One-sided by design: a
   // file with no findings passes, so this can only fail when an anchor is

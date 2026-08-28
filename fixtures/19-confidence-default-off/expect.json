@@ -1,0 +1,7 @@
+{
+  "_source": "README Expected outcomes — E2E-19. The contract is the ABSENCE of a `XX%` confidence badge on a fresh install, which mustNotContain cannot express because the number varies — hence mustNotMatch (added to grade-run.mjs for this fixture). The negative lookahead is load-bearing, not decoration: every review comment ends with a View-full-details link whose path is percent-encoded (`mergewatch%2Ffixtures%3A1206%23e8d4488`), so a bare `\\d{1,3}%` matches `1206%23` and would fail this fixture on correct output — verified against a live comment. Excluding `%` followed by two hex digits skips percent-encoding while still catching a real badge. The review-details table reports tokens and cost in `$`, never a percentage, and this overlay's diff (a typed cache getter) contains no percent literal for the model to quote. One-sided: it can only fail if the default flips back on.",
+  "comment": "present",
+  "mustNotMatch": [
+    "\\d{1,3}%(?![0-9A-Fa-f]{2})"
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "_source": "README Expected outcomes — E2E-15. Asserts a Mermaid block is emitted and fenced. Whether it RENDERS is a GitHub-side property no API exposes, so that stays manual. Deliberately does NOT assert the absence of `&lt;` / `&gt;`: the sanitizer emits entity-encoded labels on purpose (observed in live output: `A[\"src/handler.ts&lt;br/&gt;deleteSession&lpar;&rpar;\"]`) and Mermaid decodes them at render time — asserting their absence would fail on correct output.",
+  "comment": "present",
+  "mustMatch": [
+    "```mermaid"
+  ]
+}

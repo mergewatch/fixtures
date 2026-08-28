@@ -1,0 +1,9 @@
+{
+  "_source": "README Expected outcomes — E2E-32, NARROWED. FP-C's contract is a COUNT — one rendered finding for src/exec.ts:7 rather than two or three — and expect.json has no total-findings-at-one-line assertion (findingLines checks where anchors landed, not how many share one). `critical: {min: 1}` holds the one mechanical half: exec() on unsanitised user input is textbook shell injection, and the merge must not swallow the finding entirely. The dedup ratio and the absorbed-sibling list stay manual.",
+  "comment": "present",
+  "findings": {
+    "critical": {
+      "min": 1
+    }
+  }
+}

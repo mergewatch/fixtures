@@ -1,0 +1,12 @@
+{
+  "_source": "README Step 2 precondition — E2E-35, SETUP HALF ONLY. FP-F's contract (a resolved finding is not re-raised) needs the manual inline reply plus a sync push, and its outcomes are agent log lines. Asserted here is what step 2 requires in order to be performable at all: a Critical rendered as an inline thread for the author to reply 'resolved' in. If the inline thread never appears, the manual half cannot run and must not read as a pass. All three share one bait file — src/admin-endpoint.ts, an unauthenticated admin endpoint the README calls out as reliably drawing an inline-comment-eligible Critical — so the setup half is deterministic in the same way E2E-03 and E2E-28b are. NEEDS_HUMAN_STEP means automated setup, manual completion: the setup half is gradeable and was costing a real PR and a real review while asserting nothing (fixtures#1076).",
+  "comment": "present",
+  "findings": {
+    "critical": {
+      "min": 1
+    }
+  },
+  "inlineComments": {
+    "min": 1
+  }
+}

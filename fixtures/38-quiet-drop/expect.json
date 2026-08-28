@@ -1,0 +1,8 @@
+{
+  "_source": "README Expected outcomes — E2E-38, AUTOMATED HALF ONLY. Every outcome is a silentDropCount value on a FindingDispositionRecord, read from DynamoDB after a manual unrelated-file push — and the drop itself is explicitly stochastic (the README notes review #2 may legitimately keep the finding). Asserted here: review #1 lands, which is the precondition for the DB half. The DynamoDB commands are in the fixture's own procedure, corrected in fixtures#1142.",
+  "comment": "present",
+  "score": {
+    "min": 1,
+    "max": 5
+  }
+}
