@@ -8,7 +8,9 @@ New inline-thread intent parser alongside `detectResolveIntent`. Recognises `/me
 - `style-disagreement`
 - `other`
 
-Increments `disputeCount` AND appends `{ category, text?, at }` to `rejectReasons[]` on the `FindingDispositionRecord`. Bot posts a confirming reply (*"Got it — recording as <category>. This pattern won't be re-raised on similar code unless conditions change."*). Thread is NOT auto-resolved (different from `/resolve` — rejection is for *finding-level FP signal*, resolution is for *thread-level closure*).
+Increments `disputeCount` AND appends `{ category, text?, at }` to `rejectReasons[]` on the `FindingDispositionRecord`. Bot confirms by appending a footer to the finding comment — *"✅ Marked **rejected** (`<category>`) — won't re-raise on this PR while the code is unchanged."* Not a thread reply: a reply is auto-wrapped into a standalone COMMENTED review (#190).
+
+> **Corrected (mergewatch.ai#528).** This previously described a reply saying *"won't be re-raised on similar code unless conditions change"*, matching the footer the product shipped. Both overpromised. Suppression is scoped to **this PR** (`disputedKeys` come from the PR's own triage and inline replies) and the key embeds the cited code line as a fingerprint, so editing that line **ends** the suppression — the opposite of "similar code". Verify against the wording above, not the old sentence. Thread is NOT auto-resolved (different from `/resolve` — rejection is for *finding-level FP signal*, resolution is for *thread-level closure*).
 
 ## Apply
 
