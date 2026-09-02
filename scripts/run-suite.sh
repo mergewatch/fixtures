@@ -138,6 +138,14 @@ fi
 # discovered 22 times, 45 seconds apart.
 "$REPO_ROOT/scripts/check-baseline-drift.sh" || exit $?
 
+# --- preflight: no fixture may already have an open PR on its branch ---------
+#
+# Third of the same shape. apply-fixture cannot open a second PR for a branch
+# that already has one, so the fixture fails — after everything ahead of it in
+# the list has already spent real review budget. One `gh pr list` answers it
+# for free, before the first PR is opened.
+"$REPO_ROOT/scripts/check-branch-collisions.sh" "${FIXTURES[@]}" || exit $?
+
 echo "→ Running suite: $TOTAL fixture(s)."
 
 PASS=(); FAIL=(); PREREQ_SKIPPED=()
