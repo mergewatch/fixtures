@@ -39,7 +39,7 @@ echo "→ Resetting environment for $NWO"
 # one --limit, and a teardown that silently leaves some open is a broken reset.
 # Each closed PR drops out of the next page, so we converge to zero; the
 # zero-progress guard stops us if a PR can't be closed (e.g. permissions).
-# Only PRs whose head branch is `fixture/*` — the ones apply-fixture.sh opens.
+# Only PRs this harness opened.
 #
 # This used to close EVERY open PR. That is defensible for a human resetting
 # their own environment, and destructive once the E2E gate runs it in CI on a
@@ -47,15 +47,32 @@ echo "→ Resetting environment for $NWO"
 # (fixtures#763) mid-review, with --delete-branch, so it could not even be
 # reopened without re-pushing the branch. A test harness must not delete work
 # it did not create.
-echo "→ Closing open fixture/* PRs."
+#
+# `fixture/*` alone was the wrong test for that. An agent-detection fixture
+# needs a `claude/` / `cursor/` / `codex/` prefix BY DEFINITION — the prefix is
+# the thing under test — so 16-agent-authored was never torn down, and its
+# surviving PR then blocked its own next run with "a pull request for branch
+# already exists". That cost a full gate run.
+#
+# The exact test is whether some fixture DECLARES the branch. That covers
+# `claude/fix-greet-bug` and still cannot touch a branch no fixture owns, which
+# is the #763 guarantee. `fixture/*` is kept as a union term so a fixture whose
+# directory is missing from the current tree is still cleaned up.
+FIXTURE_BRANCHES="$(grep -hE '^BRANCH=' fixtures/*/meta.env 2>/dev/null | cut -d= -f2- | tr -d '\r' | grep -v '^$' | sort -u)"
+echo "→ Closing open PRs on fixture branches."
 closed_total=0
 while :; do
   # read into an array without mapfile (bash 4+) so this runs on macOS bash 3.2
   OPEN_PRS=()
-  while IFS= read -r pr_num; do
-    [ -n "$pr_num" ] && OPEN_PRS+=("$pr_num")
+  while IFS="$(printf '\t')" read -r pr_num br; do
+    [ -n "$pr_num" ] || continue
+    case "$br" in
+      fixture/*) ;;
+      *) printf '%s\n' "$FIXTURE_BRANCHES" | grep -qxF "$br" || continue ;;
+    esac
+    OPEN_PRS+=("$pr_num")
   done < <(gh pr list --state open --limit 100 --json number,headRefName \
-             --jq '.[] | select(.headRefName | startswith("fixture/")) | .number')
+             --jq '.[] | "\(.number)\t\(.headRefName)"')
   [ "${#OPEN_PRS[@]}" -eq 0 ] && break
   closed_this_round=0
   for pr in "${OPEN_PRS[@]}"; do
