@@ -93,6 +93,45 @@ test('an unreadable state keeps waiting rather than declaring teardown', () => {
   assert.match(r.stderr, /Timed out/);
 });
 
+test('a fixture this run did not apply is never waited on', () => {
+  // The deploy-gate failure this came from: 68-org-custom-agents skipped for a
+  // missing prerequisite, but run-suite still resolved its branch to a CLOSED
+  // PR from weeks earlier. The liveness check saw a closed target and reported
+  // a teardown — correct logic, wrong input.
+  const r = runWith({ state: 'CLOSED', statusCheckRollup: [] }, {
+    prs: [{ fixture: 'zz-prereq-missing', pr: 689, applied: 'skipped-missing-prereq' }],
+  });
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /did not apply/);
+  assert.doesNotMatch(r.stderr, /were closed while this run was waiting/);
+});
+
+test('a fixture whose apply errored is never waited on either', () => {
+  const r = runWith({ state: 'CLOSED', statusCheckRollup: [] }, {
+    prs: [{ fixture: 'zz-broken', pr: 690, applied: 'error' }],
+  });
+  assert.equal(r.status, 0, r.stderr);
+});
+
+test('a manifest with no `applied` field still works', () => {
+  // Back-compat: manifests written before `applied` was recorded must not
+  // silently stop being waited on.
+  const r = runWith({ state: 'OPEN', statusCheckRollup: [completed] }, {
+    prs: [{ fixture: 'zz-legacy', pr: 42 }],
+  });
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /All 1 review\(s\) completed/);
+});
+
+test('an applied fixture that IS torn down still reports it', () => {
+  // The guard must not swallow the case it exists for.
+  const r = runWith({ state: 'CLOSED', statusCheckRollup: [] }, {
+    prs: [{ fixture: 'zz-applied', pr: 43, applied: 'ok' }],
+  });
+  assert.equal(r.status, 2, r.stderr);
+  assert.match(r.stderr, /were closed while this run was waiting/);
+});
+
 test('fixtures with no PR are not waited on at all', () => {
   const r = runWith({ state: 'CLOSED', statusCheckRollup: [] }, {
     prs: [{ fixture: 'zz-manual-only', pr: null }],

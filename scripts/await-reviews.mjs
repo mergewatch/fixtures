@@ -105,9 +105,30 @@ function expectsNoCheck(fixture) {
   }
 }
 
-// Fixtures with no PR (manual, reuse, or failed to apply) have nothing to wait
-// for. Excluding them here keeps a failed apply from stalling the whole wait.
-const withPr = (manifest.fixtures ?? []).filter((f) => f.pr != null);
+// Only fixtures THIS RUN actually applied are worth waiting for.
+//
+// `pr != null` alone is not that test, and the difference took down a deploy
+// gate (mergewatch.ai#529's run). run-suite.sh resolves a fixture's PR by
+// branch name, and `gh pr view <branch>` happily returns a CLOSED PR from a
+// previous run when the current one opened none. So a fixture that was skipped
+// for a missing prerequisite still carried a PR number — #689, from weeks
+// earlier — into the manifest.
+//
+// The liveness check below then did exactly what it was built to do: saw a
+// closed PR it was waiting on and reported a teardown. Correct logic, wrong
+// input. Before that check existed the same manifest entry burned the full
+// timeout and blamed webhooks instead, so this was always broken — it just
+// failed slower.
+//
+// `applied` is missing on manifests written before it was recorded; treat that
+// as 'ok' so an older manifest still works.
+const applied = (f) => (f.applied ?? 'ok') === 'ok';
+const skippedByApply = (manifest.fixtures ?? []).filter((f) => f.pr != null && !applied(f));
+if (skippedByApply.length) {
+  console.log(`Not waiting on ${skippedByApply.length} fixture(s) this run did not apply: `
+    + skippedByApply.map((f) => `${f.fixture} (${f.applied})`).join(', '));
+}
+const withPr = (manifest.fixtures ?? []).filter((f) => f.pr != null && applied(f));
 const checkless = withPr.filter((f) => expectsNoCheck(f.fixture));
 const targets = withPr.filter((f) => !expectsNoCheck(f.fixture));
 if (checkless.length) {
