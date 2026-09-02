@@ -2,7 +2,9 @@
 
 The third knob from **E2E-78**, split out because it needs a *clean* diff while **78a** needs a noisy one. `postSummaryOnClean` decides whether a clean PR gets a comment at all. Teams reviewing dozens of PRs a day often don't want an "all clear" comment on every one.
 
-The load-bearing detail: it suppresses only the **comment**. The check run must still report, or the PR loses its merge signal and the setting becomes a footgun.
+The load-bearing detail: it suppresses only the **comment**. Both other surfaces still fire — the check run reports its passing conclusion (or the PR loses its merge signal and the setting becomes a footgun), and the formal Review event is still submitted, which on a clean PR is an **APPROVE**.
+
+That second one is worth knowing before you enable this: `postSummaryOnClean: false` makes MergeWatch quiet in the comment thread, **not** invisible. The PR timeline still shows "approved these changes", and where branch protection counts App reviews that approval can satisfy a required-review rule. The setting governs the summary comment, which is what it is named for — nothing else.
 
 ## Apply
 
@@ -19,7 +21,10 @@ Then flip `postSummaryOnClean: true` on the branch and push to confirm the all-c
 - [ ] The review completes and finds nothing (control — this is a clean diff).
 - [ ] With `postSummaryOnClean: false`, **no** summary comment is posted.
 - [ ] The check run **still reports**, with a passing conclusion and the merge score.
-- [ ] No inline comments and no formal Review event are left behind either.
+- [ ] No inline comments are posted (trivially — a clean PR has no findings to anchor).
+- [ ] A formal Review event **is** still submitted, and on a clean PR it is an `APPROVE`. This bullet used to
+      say the opposite; the README was wrong and the product was right. `postSummaryOnClean` gates the
+      comment only (`review-processor.ts:835`), and `submitPRReview` runs regardless.
 - [ ] Flipping to `postSummaryOnClean: true` and pushing restores the "all clear" summary comment.
 - [ ] The setting has no effect on a PR that *does* have findings — those still comment regardless.
 

@@ -1,7 +1,7 @@
 {
-  "_source": "README Expected outcomes — E2E-78b. Fully mechanical, and the strongest form in this batch: postSummaryOnClean: false on a deliberately clean diff means no summary comment, no inline comments and no formal Review event, while the check still reports its passing conclusion. The failure this catches is the setting silently suppressing the CHECK too, which would remove the only remaining signal. The flip-to-true half needs a push and stays manual. (fixtures#1076 suggested mustContain 'All clear' — that is the flipped case; here the all-clear must be ABSENT.)",
+  "_source": "README Expected outcomes — E2E-78b. postSummaryOnClean: false on a clean diff suppresses the summary COMMENT only. The check still reports its passing conclusion, and the formal Review event is still submitted — APPROVE on a clean PR. The README previously listed \"no formal Review event\" as an expected outcome; that was wrong and this fixture failed on it (mergewatch.ai run 33582978649). The product is correct: the setting is named for the summary and `stayingSilent` gates only the comment post. The failure this fixture catches is the setting silently suppressing the CHECK too, which would remove the only remaining merge signal. The flip-to-true half needs a push and stays manual.",
   "comment": "absent",
   "check": "success",
-  "reviewState": "none",
+  "reviewState": "APPROVED",
   "inlineComments": 0
 }
