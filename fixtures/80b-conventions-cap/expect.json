@@ -1,7 +1,7 @@
 {
-  "_source": "README Expected outcomes — E2E-80b. docs/house-rules.md is oversized on purpose with EARLY-RULE inside the 16 KB cap and LATE-RULE past it. The cap is a byte-offset truncation, so content past it cannot reach the agents at all — asserting LATE-RULE's absence tests the truncation itself, not the model. One-sided by design: EARLY-RULE's presence would also require the model to cite the rule it was given, which is judgement. `comment: present` carries the other stated outcome — an over-cap file must not fail or stall the review.",
+  "_source": "README Expected outcomes — E2E-80b. docs/house-rules.md is oversized on purpose. Asserted against the review-details row the loader itself writes — `Loaded from \\u0060docs/house-rules.md\\u0060 (truncated)` — which is the cap reporting that it fired. The previous form asserted LATE-RULE's absence from the whole comment, but the fixture adds house-rules.md as part of the PR, so the diagram and cited-code evidence can quote it from the DIFF without the conventions cap having failed at all. Two different paths, one string. `comment: present` carries the other stated outcome — an over-cap file must not fail or stall the review.",
   "comment": "present",
-  "mustNotContain": [
-    "LATE-RULE"
+  "mustContain": [
+    "Loaded from `docs/house-rules.md` (truncated)"
   ]
 }

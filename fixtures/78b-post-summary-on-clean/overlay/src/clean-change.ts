@@ -9,7 +9,9 @@ export function addMoney(a: Money, b: Money): Money {
 
 export function formatMoney(value: Money): string {
   const symbol = value.currency === 'USD' ? '$' : '€';
-  const whole = Math.trunc(value.cents / 100);
-  const fraction = Math.abs(value.cents % 100).toString().padStart(2, '0');
-  return `${symbol}${whole}.${fraction}`;
+  const sign = value.cents < 0 ? '-' : '';
+  const magnitude = Math.abs(value.cents);
+  const whole = Math.trunc(magnitude / 100);
+  const fraction = (magnitude % 100).toString().padStart(2, '0');
+  return `${sign}${symbol}${whole}.${fraction}`;
 }
