@@ -4,6 +4,31 @@ Org admins define custom review agents in the dashboard (**Settings → Custom A
 
 At review time the runtime selects enabled agents that are in scope and match targeting, runs them in **union** with the repo's `.mergewatch.yml` `customAgents` (**org wins on a name collision**), and — for a **blocking** agent — a **critical** finding forces `REQUEST_CHANGES` plus a failing check run regardless of the merge score (`Blocked by org agent: <name>`). Only org admins can edit; members are read-only. Each agent records its last editor and timestamp, and a soft cap warns past ~10 active agents. Authors can still triage a blocking finding, but the triage is recorded (disposition store + a `[org-agents]` log).
 
+## Why this fixture is manual (mergewatch.ai#510)
+
+`PREREQ_CHECK` reads the `#AGENTS` row from DynamoDB, and **the E2E gate job has
+no AWS credentials** — its whole environment is `GH_TOKEN` and `MW_STAGE`. The
+prerequisite is therefore unsatisfiable in CI by construction, and no amount of
+seeding changes that.
+
+Until fixtures#1550 the failure printed *"Could not auto-discover the
+installation id"*, which reads as a missing row, so this looked like a seeding
+problem for weeks. It was an access problem.
+
+The fixture was selected on every gate run and skipped on every gate run, which
+made the graded total read **49 when 48 was the number that could ever pass**. A
+count nobody can reach is worse than a smaller honest one — it is the same
+coverage illusion as an ungraded fixture (fixtures#1076).
+
+So it is `NEEDS_HUMAN_STEP`, not `MANUAL_ONLY`: the PR is still opened and
+reviewed normally when a person runs it with credentials. Only the automated
+selection changes.
+
+**Making it automated again** needs the gate job to hold AWS credentials, or the
+prerequisite moved to an interface that needs none (the dashboard API and MCP
+both expose org-agent state). Both are open questions on mergewatch.ai#510 —
+this is the honest interim, not the end state.
+
 ## Apply
 
 **Configure the org agent first** — this fixture is inert without it
