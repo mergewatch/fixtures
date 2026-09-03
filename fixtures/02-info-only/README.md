@@ -10,7 +10,9 @@ A PR that produces ONLY info-severity findings should reconcile to 5/5 (not the 
 
 ## Expected outcomes
 
-- [ ] Summary comment with `🟢 5/5 — Safe to merge` (NOT 3/5 or 4/5)
+- [ ] Summary comment with `🟢 5/5 — No action items in the diff` (NOT 3/5 or 4/5).
+      This fixture has info findings, so it gets the **info-only** 5/5 label — "No issues
+      found in the diff" would contradict the notes rendered below it (mergewatch.ai#516).
 - [ ] Verdict reason line: "No action items — only informational notes" (NOT "Multiple warnings")
 - [ ] Action-items section: `🎉 All clear! No issues found`
 - [ ] An "Info (N)" collapsible section IS present with ≥1 finding
