@@ -1,6 +1,6 @@
 # E2E-01: Clean PR → full review
 
-A PR with no issues should produce 5/5 "Safe to merge", an APPROVE on the formal PR review with **empty body** (verdict block removed in #132), and a summary comment with "All clear!".
+A PR with no issues should produce 5/5 "No issues found in the diff", an APPROVE on the formal PR review with **empty body** (verdict block removed in #132), and a summary comment with "All clear!".
 
 > Relies on the baseline shipping `src/utils.test.ts` so the test-coverage agent sees `add` as a pre-existing covered function. Without that, the agent fires "new public function lacks tests" on a JSDoc-only diff.
 
@@ -16,7 +16,8 @@ A PR with no issues should produce 5/5 "Safe to merge", an APPROVE on the formal
 - [ ] In-progress check run "Review in progress" appears
 - [ ] Summary comment with:
   - [ ] MergeWatch wordmark (~48px tall) at top
-  - [ ] `🟢 5/5 — Safe to merge` verdict line
+  - [ ] `🟢 5/5 — No issues found in the diff` verdict line, followed by the scope sub-line
+        (`Reviewed the diff only — …`), which renders on 4–5 only
   - [ ] `🎉 All clear! No issues found` action-items section
   - [ ] No "Requires your attention" table (zero critical + zero warning)
 - [ ] Formal PR review state = **Approved**

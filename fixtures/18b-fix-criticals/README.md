@@ -27,7 +27,10 @@ Both would count as **new** criticals on the fix commit, breaking the delta-awar
 ## Expected outcomes (second review)
 
 - [ ] "📎 Previously reported findings" section shows ≥1 criticals from step 1 marked as **✅ Resolved**
-- [ ] Verdict line shows `🟢 4/5 — Generally safe` or `🟢 5/5 — Safe to merge` — NOT red/orange
+- [ ] Verdict line shows `🟢 4/5 — Generally safe`, or a green 5/5 — NOT red/orange.
+      The 5/5 label depends on whether anything is still reported: `No issues found in the
+      diff` when nothing is, `No action items in the diff` when only info notes remain
+      (mergewatch.ai#516).
 - [ ] If the LLM still flags 1-2 minor concerns on the fix, the verdict should land at **🟡 3/5** at worst (net-improvement tier — `resolvedCriticals > newCriticals` keeps it yellow, not red)
 - [ ] Verdict reason mentions resolved criticals — either pure (*"Resolved N critical issues from prior review, no new criticals introduced."*) or net (*"Resolved N critical issues from prior review; introduced M new — net improvement, but review the new findings."*)
 - [ ] Formal PR review state = **Approved** (empty body) on green, **Comment** on yellow
