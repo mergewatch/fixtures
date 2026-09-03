@@ -42,17 +42,41 @@ done
 case "$ENFORCEMENT" in advisory|blocking) ;; *) echo "enforcement must be advisory|blocking" >&2; exit 1 ;; esac
 
 # --- resolve the installation id --------------------------------------------
+#
+# The scan's STDERR is kept, and its exit status is checked separately from its
+# output. `2>/dev/null || true` collapsed both failures into one empty string,
+# so "I have no permission to look" printed the same sentence as "the row is
+# not there" — and the caller could not tell them apart either.
+#
+# That cost real time: 68-org-custom-agents has been skipping on every deploy
+# gate with "Could not auto-discover the installation id", which reads as a
+# missing row. The gate job has no AWS credentials at all, so the scan was
+# failing on authentication every single run (mergewatch.ai#510).
+#
+# Exit codes carry the distinction, because apply-fixture treats them
+# differently: 3 = prerequisite genuinely absent (skip the fixture), anything
+# else = a real error worth surfacing.
 if [ -z "${INSTALLATION_ID:-}" ]; then
   NWO="$(gh repo view --json nameWithOwner --jq .nameWithOwner)"
-  INSTALLATION_ID="$(aws dynamodb scan --table-name "$TABLE" \
+  SCAN_ERR="$(mktemp)"
+  if ! INSTALLATION_ID="$(aws dynamodb scan --table-name "$TABLE" \
     --filter-expression 'repoFullName = :r' \
     --expression-attribute-values "{\":r\":{\"S\":\"$NWO\"}}" \
     --projection-expression installationId \
-    --query 'Items[0].installationId.S' --output text 2>/dev/null || true)"
-  if [ -z "$INSTALLATION_ID" ] || [ "$INSTALLATION_ID" = "None" ]; then
-    echo "Could not auto-discover the installation id for $NWO in $TABLE." >&2
-    echo "Pass --installation-id <id> (or set INSTALLATION_ID)." >&2
+    --query 'Items[0].installationId.S' --output text 2>"$SCAN_ERR")"; then
+    echo "✗ Cannot read $TABLE — this is an ACCESS problem, not a missing row." >&2
+    sed 's/^/    /' "$SCAN_ERR" >&2
+    echo "  Check AWS credentials for profile '${AWS_AUTHORITY:-$AWS_PROFILE}' in $AWS_REGION." >&2
+    echo "  CI note: the E2E gate job has no AWS credentials, so this can never" >&2
+    echo "  succeed there — the fixture's prerequisite is unsatisfiable in that job." >&2
+    rm -f "$SCAN_ERR"
     exit 1
+  fi
+  rm -f "$SCAN_ERR"
+  if [ -z "$INSTALLATION_ID" ] || [ "$INSTALLATION_ID" = "None" ]; then
+    echo "✗ No installation for $NWO in $TABLE — the row is genuinely absent." >&2
+    echo "  Pass --installation-id <id> (or set INSTALLATION_ID) if you know it." >&2
+    exit 3
   fi
 fi
 
