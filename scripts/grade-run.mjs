@@ -46,7 +46,7 @@
  * locally. The resolved source is always printed.
  */
 import { execFileSync } from 'node:child_process';
-import { readFileSync, existsSync, readdirSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync, writeFileSync } from 'node:fs';
 
 // --- CLI --------------------------------------------------------------------
 const argv = process.argv.slice(2);
@@ -134,6 +134,45 @@ function findBotComment(pr, stage) {
   // second one, the newest is what a human would read.
   const hits = (pr.comments ?? []).filter((c) => (c.body ?? '').includes(m));
   return hits.length ? hits[hits.length - 1] : null;
+}
+
+/**
+ * #536 — what this review cost, from the details table the formatter emits.
+ *
+ * Two formats exist and both must be handled:
+ *   | **Est. cost** | ~$0.2424 (LLM only) |
+ *   | **Est. cost** | ~$0.1234 this run · ~$0.5678 total for PR (LLM only) |
+ *
+ * The second appears when a PR was reviewed more than once. Reading only the
+ * first number there would undercount every re-reviewed fixture — and the suite
+ * re-reviews routinely (18b pushes onto 18a, and any `@mergewatch review`
+ * does). The cumulative figure is what the run actually spent on that PR, so it
+ * wins when present.
+ *
+ * Returns null for cost when the block is absent. The formatter omits it when
+ * the cost is zero or unknown, so absent is a real state and must NOT be read
+ * as $0 — that is the difference between "cheap" and "not measured".
+ */
+function parseReviewCost(body) {
+  const text = body ?? '';
+  let costUsd = null;
+  const cumulative = /\*\*Est\. cost\*\*\s*\|\s*~\$([0-9.]+)\s+this run\s*·\s*~\$([0-9.]+)\s+total for PR/.exec(text);
+  if (cumulative) {
+    costUsd = Number(cumulative[2]);
+  } else {
+    const single = /\*\*Est\. cost\*\*\s*\|\s*~\$([0-9.]+)/.exec(text);
+    if (single) costUsd = Number(single[1]);
+  }
+  if (costUsd != null && !Number.isFinite(costUsd)) costUsd = null;
+
+  // | **Tokens** | 115,256 in · 2,551 out · 117,807 total |
+  const t = /\*\*Tokens\*\*\s*\|\s*([0-9,]+) in\s*·\s*([0-9,]+) out/.exec(text);
+  const num = (v) => Number(String(v).replace(/,/g, ''));
+  return {
+    costUsd,
+    inputTokens: t ? num(t[1]) : null,
+    outputTokens: t ? num(t[2]) : null,
+  };
 }
 
 /** Merge score 1-5 from the verdict badge, or null. */
@@ -401,6 +440,7 @@ function observe(pr, repo, prNumber, stage) {
     inlineCount: inline.length,
     reactions: (pr.reactionGroups ?? []).filter((g) => (g.users?.totalCount ?? 0) > 0)
       .map((g) => g.content),
+    cost: parseReviewCost(comment?.body),
   };
 }
 
@@ -493,12 +533,16 @@ for (const entry of manifest.fixtures ?? []) {
         ...devFails.map((f) => `dev: ${f}`),
         ...(prodScore !== devObs.score ? [`DIVERGENCE: prod ${prodScore}/5 vs dev ${devObs.score}/5`] : []),
       ],
+      // Compare mode reads both stages; the dev review is the one this run
+      // caused, so it is the one whose cost belongs to the run.
+      cost: devObs.cost,
     });
     continue;
   }
 
-  const fails = evaluate(expect, observe(pr, repo, entry.pr, STAGE));
-  results.push({ ...base, verdict: fails.length ? 'FAIL' : 'PASS', notes: fails });
+  const obs = observe(pr, repo, entry.pr, STAGE);
+  const fails = evaluate(expect, obs);
+  results.push({ ...base, verdict: fails.length ? 'FAIL' : 'PASS', notes: fails, cost: obs.cost });
 }
 
 /**
@@ -538,12 +582,53 @@ function unverifiedCorrectness(ranFixtures) {
   return out;
 }
 
+/**
+ * #536 — what the run cost.
+ *
+ * The suite spends real money on every fixture and reported none of it, so
+ * every claim about fixture cost was an estimate. That is not a reporting nicety:
+ * the sibling issues (#537-#539, #560) all propose cutting spend and none of
+ * them can show they worked without a number to compare against.
+ *
+ * `unknown` is tracked separately and NEVER folded into the total as zero. A
+ * fixture whose review posted no cost block (a skip, an error, a review that
+ * never landed) has an unmeasured cost, not a free one — and summing it as $0
+ * would quietly understate the suite exactly as its coverage was once quietly
+ * overstated.
+ */
+function costSummary(rs) {
+  const measured = [];
+  const unknown = [];
+  for (const r of rs) {
+    // Fixtures that never ran are not "unmeasured cost" — they had none.
+    if (r.verdict === 'SKIP') continue;
+    if (r.cost?.costUsd != null) measured.push(r);
+    else unknown.push(r);
+  }
+  const totalUsd = measured.reduce((a, r) => a + r.cost.costUsd, 0);
+  const inTok = measured.reduce((a, r) => a + (r.cost.inputTokens ?? 0), 0);
+  const outTok = measured.reduce((a, r) => a + (r.cost.outputTokens ?? 0), 0);
+  return {
+    totalUsd,
+    measuredCount: measured.length,
+    unknown: unknown.map((r) => r.fixture),
+    inputTokens: inTok,
+    outputTokens: outTok,
+    perFixture: measured
+      .map((r) => ({ fixture: r.fixture, costUsd: r.cost.costUsd }))
+      .sort((a, b) => b.costUsd - a.costUsd),
+  };
+}
+
+const COST = costSummary(results);
+
 // --- Report -----------------------------------------------------------------
 if (AS_JSON) {
   console.log(JSON.stringify({
     repo,
     stage: STAGE ?? (COMPARE ? 'compare' : 'prod'),
     expectations: { source: SOURCE.label, kind: SOURCE.kind, count: expectCount },
+    cost: COST,
     results,
   }, null, 2));
 } else {
@@ -587,6 +672,44 @@ if (AS_JSON) {
       + `— ${manual} manual, ${ungraded} ungraded, ${runnable} graded but not selected.`);
     console.log('  These were not checked. A green run above does not cover them.');
   }
+
+  // #536 — printed LAST on purpose. The gate summary lifts `tail -40` of this
+  // output into the job summary, so anything that must reach a reader has to
+  // be at the end. Costs nothing to place correctly and cannot be fixed later
+  // without a workflow change.
+  console.log('');
+  const usd = COST.totalUsd.toFixed(2);
+  const tok = (n) => n.toLocaleString();
+  console.log(`Suite cost: ~$${usd} across ${COST.measuredCount} reviewed fixture(s) `
+    + `(${tok(COST.inputTokens)} in / ${tok(COST.outputTokens)} out tokens)`);
+  if (COST.unknown.length > 0) {
+    // Named, not summed. An unmeasured fixture is not a free one.
+    console.log(`  ${COST.unknown.length} fixture(s) reported no cost and are NOT in that total: `
+      + COST.unknown.join(', '));
+  }
+  if (COST.perFixture.length > 0) {
+    console.log('  Most expensive:');
+    for (const f of COST.perFixture.slice(0, 5)) {
+      console.log(`    $${f.costUsd.toFixed(4)}  ${f.fixture}`);
+    }
+  }
+}
+
+/**
+ * #536 — persist the totals next to the manifest so a local `/verify-suite`
+ * reports the same number the gate does, rather than the reader having to
+ * scroll a CI log.
+ *
+ * Best-effort: a grading run that cannot write its cost note is still a valid
+ * grading run, and failing the gate over a bookkeeping write would be worse
+ * than the gap it closes.
+ */
+try {
+  const m = JSON.parse(readFileSync(MANIFEST, 'utf8'));
+  m.cost = COST;
+  writeFileSync(MANIFEST, `${JSON.stringify(m, null, 2)}\n`);
+} catch (err) {
+  console.error(`note: could not record cost in ${MANIFEST}: ${err.message}`);
 }
 
 // A fetch error is not a product regression, but it does mean the run was not
