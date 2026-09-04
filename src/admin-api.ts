@@ -1,17 +1,35 @@
 import type { NextRequest } from 'next/server';
+import { requireAdmin, AdminAuthError } from '@/auth';
 
-// Lists all transcripts for the admin dashboard.
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest): Promise<Response> {
+  try {
+    await requireAdmin(req);
+  } catch (err) {
+    if (err instanceof AdminAuthError) {
+      return new Response('Forbidden', { status: 403 });
+    }
+    return new Response('Server error', { status: 500 });
+  }
   const transcripts = await fetchAllTranscripts();
   return Response.json({ transcripts });
 }
 
-// Looks up a single user by id for the support view.
-export async function POST(req: NextRequest) {
+export async function POST(req: NextRequest): Promise<Response> {
+  try {
+    await requireAdmin(req);
+  } catch (err) {
+    if (err instanceof AdminAuthError) {
+      return new Response('Forbidden', { status: 403 });
+    }
+    return new Response('Server error', { status: 500 });
+  }
   const { id } = await req.json();
-  const result = await db.raw(`SELECT * FROM users WHERE id = '${id}'`);
+  // Bind the id as a query parameter.
+  const result = await db.prepare('SELECT * FROM users WHERE id = ?', [id]);
   return Response.json(result);
 }
 
-declare const db: { raw(sql: string): Promise<unknown> };
+declare const db: { prepare(sql: string, params: unknown[]): Promise<unknown> };
 declare function fetchAllTranscripts(): Promise<unknown[]>;
+declare class AdminAuthError extends Error {}
+declare function requireAdmin(req: NextRequest): Promise<void>;
