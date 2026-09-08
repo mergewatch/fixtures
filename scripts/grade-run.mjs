@@ -722,17 +722,34 @@ if (AS_JSON) {
   console.log('');
   const usd = COST.totalUsd.toFixed(2);
   const tok = (n) => n.toLocaleString();
-  console.log(`Suite cost: ~$${usd} across ${COST.measuredCount} reviewed fixture(s) `
-    + `(${tok(COST.inputTokens)} in / ${tok(COST.outputTokens)} out tokens)`);
-  if (COST.unknown.length > 0) {
-    // Named, not summed. An unmeasured fixture is not a free one.
-    console.log(`  ${COST.unknown.length} fixture(s) reported no cost and are NOT in that total: `
-      + COST.unknown.join(', '));
-  }
-  if (COST.perFixture.length > 0) {
-    console.log('  Most expensive:');
-    for (const f of COST.perFixture.slice(0, 5)) {
-      console.log(`    $${f.costUsd.toFixed(4)}  ${f.fixture}`);
+
+  // #561 — a run where fixtures reviewed but NONE reported a cost is a parser
+  // break, not a cheap run. The cost block is parsed out of the review
+  // comment's details table, so a formatter change silently stops matching and
+  // the total collapses to $0.00 — which reads as good news.
+  //
+  // Distinguished from "nothing ran": if there were no reviewed fixtures at
+  // all, zero is the correct answer and says nothing about the parser.
+  if (COST.measuredCount === 0 && COST.unknown.length > 0) {
+    console.log(`Suite cost: UNKNOWN — ${COST.unknown.length} fixture(s) were reviewed and NONE `
+      + 'reported a cost.');
+    console.log('  This is a PARSER failure, not a cheap run. The cost block is read out of the');
+    console.log('  review comment; a formatter change stops it matching and the total silently');
+    console.log('  collapses to $0.00. Compare comment-formatter.ts against parseReviewCost().');
+    console.log(`  Fixtures: ${COST.unknown.join(', ')}`);
+  } else {
+    console.log(`Suite cost: ~$${usd} across ${COST.measuredCount} reviewed fixture(s) `
+      + `(${tok(COST.inputTokens)} in / ${tok(COST.outputTokens)} out tokens)`);
+    if (COST.unknown.length > 0) {
+      // Named, not summed. An unmeasured fixture is not a free one.
+      console.log(`  ${COST.unknown.length} fixture(s) reported no cost and are NOT in that total: `
+        + COST.unknown.join(', '));
+    }
+    if (COST.perFixture.length > 0) {
+      console.log('  Most expensive:');
+      for (const f of COST.perFixture.slice(0, 5)) {
+        console.log(`    $${f.costUsd.toFixed(4)}  ${f.fixture}`);
+      }
     }
   }
 }
