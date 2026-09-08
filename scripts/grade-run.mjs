@@ -153,8 +153,62 @@ function findBotComment(pr, stage) {
  * the cost is zero or unknown, so absent is a real state and must NOT be read
  * as $0 — that is the difference between "cheap" and "not measured".
  */
+/**
+ * #561 — the `<!-- mw-cost:{...} -->` block the comment formatter emits.
+ *
+ * Returns null when absent or unusable so the caller falls back to the prose,
+ * which is what keeps a review from an older deployment readable.
+ *
+ * A malformed payload returns null rather than throwing: throwing here would
+ * take down the whole grading step rather than one fixture's cost.
+ */
+function parseCostPayloadBlock(text) {
+  const m = /<!-- mw-cost:(\{.*?\}) -->/.exec(text);
+  if (!m) return null;
+  let parsed;
+  try {
+    parsed = JSON.parse(m[1]);
+  } catch {
+    return null;
+  }
+  if (!parsed || typeof parsed !== 'object') return null;
+
+  // `cumulativeCostUsd` wins when present and larger, matching the prose rule:
+  // a re-reviewed PR's real spend is the cumulative figure, not the last run.
+  const run = typeof parsed.estimatedCostUsd === 'number' ? parsed.estimatedCostUsd : null;
+  const cum = typeof parsed.cumulativeCostUsd === 'number' ? parsed.cumulativeCostUsd : null;
+  let costUsd = cum != null && (run == null || cum > run) ? cum : run;
+  if (costUsd != null && !Number.isFinite(costUsd)) costUsd = null;
+
+  // An empty payload `{}` yields a null cost, which lands in `unknown` and is
+  // NAMED in the summary. That is deliberate and matches the prose path: the
+  // formatter emits `{}` exactly when it also omits the cost row, so the two
+  // describe one state and must not be split across two reports.
+  return {
+    costUsd,
+    inputTokens: typeof parsed.inputTokens === 'number' ? parsed.inputTokens : null,
+    outputTokens: typeof parsed.outputTokens === 'number' ? parsed.outputTokens : null,
+  };
+}
+
 function parseReviewCost(body) {
   const text = body ?? '';
+
+  // #561 phase 3 — prefer the machine-readable payload.
+  //
+  // The prose parsing below reads a details table across a REPO BOUNDARY, so a
+  // formatter change stops it matching and every fixture reports unknown. That
+  // is now loud rather than a silent $0.00 (phase 1), but loud-and-broken is
+  // still broken. The payload removes the coupling: it is emitted by the same
+  // code that renders the table, so the two cannot disagree.
+  //
+  // The prose path is KEPT, deliberately. Phase 2 shipped the payload on
+  // 2026-09-08; any review posted before that has no payload, and a stage that
+  // has not been redeployed still emits none. Removing the fallback would make
+  // those report unknown — trading a drift bug for a rollout bug.
+  const payload = parseCostPayloadBlock(text);
+  if (payload) return payload;
+
   let costUsd = null;
   const cumulative = /\*\*Est\. cost\*\*\s*\|\s*~\$([0-9.]+)\s+this run\s*·\s*~\$([0-9.]+)\s+total for PR/.exec(text);
   if (cumulative) {
