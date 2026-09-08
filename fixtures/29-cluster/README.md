@@ -14,6 +14,18 @@ The overlay adds `src/seed.ts` with three deliberately-overlapping bait regions 
 
 ## Expected outcomes
 
+> **Graded vs manual (mergewatch.ai#570).** `expect.json` asserts only what the PR
+> surface can observe deterministically: a comment, and at least one critical on a
+> file built to draw several overlapping concerns.
+>
+> Everything below about the *clustering render* is a **manual** check. Whether
+> W10 merges anything depends on the model producing findings that overlap, so an
+> automated assertion on the audit-trail block fails at random — it blocked a
+> production deploy for a YAML-only change and cost a full suite to re-run. The
+> `[clustering] merged N` log line is the honest capability check and is not
+> visible from the PR surface at all.
+
+
 - [ ] The rendered "Requires your attention" table shows **one** row referencing the parsed-chunk-file region, NOT 2-3 separate rows about validation / type assertion / untrusted JSON
 - [ ] The merged finding's title ends with *"… — and N related concern(s)"*
 - [ ] The merged finding's body contains a *"Related concerns clustered into this finding (W10):"* block listing each absorbed sibling with its original `file:line`, severity, and title
