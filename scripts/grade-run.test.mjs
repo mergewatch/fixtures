@@ -383,3 +383,83 @@ test('#560 — a selection reason containing a quote does not corrupt the manife
   assert.match(r.stdout, /matches no impact-map rule/, r.stdout);
   assert.match(r.stdout, /we"ird/, r.stdout);
 });
+
+// ─── #561 — a total absence of cost is a parser break, not a cheap run ──────
+//
+// The cost block is parsed out of the review comment's details table. A
+// formatter change stops the regex matching and the suite total silently
+// collapses to $0.00 — which reads as GOOD news, and in the direction that
+// makes the cost work look finished. Naming it is the guard.
+
+/** gh shim serving a comment with or without a cost block. */
+function ghWithCost(dir, bodies) {
+  const binDir = mkdtempSync(join(tmpdir(), 'gh-cost-'));
+  writeFileSync(join(binDir, 'gh'), `#!/usr/bin/env node
+const a = process.argv.slice(2);
+const byPr = ${JSON.stringify(JSON.stringify(bodies))};
+if (a[0] === 'pr' && a[1] === 'view') {
+  const body = JSON.parse(byPr)[a[2]];
+  process.stdout.write(JSON.stringify({
+    headRefOid: 'x', state: 'OPEN',
+    comments: body ? [{ body, author: { login: 'mergewatch' } }] : [],
+    reviews: [], statusCheckRollup: [], reactionGroups: [],
+  }));
+  process.exit(0);
+}
+process.stdout.write('[]');
+`);
+  spawnSync('chmod', ['755', join(binDir, 'gh')]);
+  return binDir;
+}
+
+function gradeCosts(bodies) {
+  const names = Object.keys(bodies).map((_, i) => `f${i}`);
+  const dir = mkdtempSync(join(tmpdir(), 'grade-561-'));
+  git(dir, 'init', '--quiet', '-b', 'main');
+  git(dir, 'config', 'user.email', 'e2e@test');
+  git(dir, 'config', 'user.name', 'e2e');
+  for (const n of names) {
+    write(dir, `fixtures/${n}/meta.env`, 'TAGS=correctness\n');
+    write(dir, `fixtures/${n}/expect.json`, '{"comment":"present"}');
+  }
+  git(dir, 'add', '-A');
+  git(dir, 'commit', '--quiet', '-m', 'f');
+  git(dir, 'update-ref', 'refs/remotes/origin/main', git(dir, 'rev-parse', 'HEAD'));
+  const entries = names.map((n, i) => ({ fixture: n, pr: i + 1, applied: 'ok' }));
+  const mf = manifest(dir, 'run.json', entries);
+  const bin = ghWithCost(dir, Object.fromEntries(Object.values(bodies).map((b, i) => [String(i + 1), b])));
+  return spawnSync('node', [SCRIPT, '--manifest', mf], {
+    cwd: dir, encoding: 'utf8',
+    env: { ...process.env, PATH: `${bin}:${process.env.PATH}` },
+  });
+}
+
+const withCost = (usd) => `<!-- mergewatch-review -->\n> 🟢 **5/5 — ok**\n\n| **Est. cost** | ~$${usd} (LLM only) |\n`;
+const noCost = '<!-- mergewatch-review -->\n> 🟢 **5/5 — ok**\n';
+
+test('#561 — every reviewed fixture missing a cost is called a PARSER failure', () => {
+  const r = gradeCosts({ a: noCost, b: noCost });
+  assert.match(r.stdout, /Suite cost: UNKNOWN/, r.stdout);
+  assert.match(r.stdout, /PARSER failure, not a cheap run/, r.stdout);
+  // Never render the misleading number.
+  assert.doesNotMatch(r.stdout, /Suite cost: ~\$0\.00/);
+});
+
+test('#561 — it names where to look, not just that something is wrong', () => {
+  const r = gradeCosts({ a: noCost });
+  assert.match(r.stdout, /comment-formatter\.ts against parseReviewCost/, r.stdout);
+});
+
+test('#561 — a partial absence still reports the total, as before', () => {
+  // One fixture missing a cost is normal (a skip-assertion fixture posts no
+  // review). Only a TOTAL absence indicates the parser.
+  const r = gradeCosts({ a: withCost('0.2000'), b: noCost });
+  assert.match(r.stdout, /Suite cost: ~\$0\.20 across 1 reviewed fixture/, r.stdout);
+  assert.doesNotMatch(r.stdout, /PARSER failure/);
+});
+
+test('#561 — a healthy run is unchanged', () => {
+  const r = gradeCosts({ a: withCost('0.1000'), b: withCost('0.2000') });
+  assert.match(r.stdout, /Suite cost: ~\$0\.30 across 2 reviewed fixture/, r.stdout);
+  assert.doesNotMatch(r.stdout, /UNKNOWN/);
+});
