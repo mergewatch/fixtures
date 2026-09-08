@@ -1,5 +1,7 @@
 {
-  "_source": "README Expected outcomes — E2E-22. src/kb.ts ALREADY awaits kbStore.searchCandidates, so a 'missing await race' CRITICAL is a truncated-diff artifact that structural grounding cannot catch (the identifier IS present on the right line) and W2's full-file verification must. `critical: 0` is the one-sided form: it can only fail if the verification pass regresses, and it does not assume any particular phrasing. The fail-safe branch — an LLM/infra error KEEPS the finding — is deliberately not asserted here; it needs an unreachable model and stays a manual check.",
+  "_source": "README Expected outcomes \u2014 E2E-22. src/kb.ts ALREADY awaits kbStore.searchCandidates, so a 'missing await race' CRITICAL is a truncated-diff artifact that structural grounding cannot catch (the identifier IS present on the right line) and W2's full-file verification must. `critical: 0` is phrasing-independent, which is why it is preferred over matching the model's wording. mergewatch.ai#570 \u2014 it previously failed for a reason it never meant to test: the overlay declared `queryEmbedding` and `kbStore` with `declare const`, which emits no runtime value, so a reviewer flagging 'references undeclared runtime values' was RIGHT and the assertion counted it. The overlay now uses real initialised values, so the await false positive is the only critical the file can plausibly draw and `critical: 0` measures what it claims. The fail-safe branch \u2014 an LLM/infra error KEEPS the finding \u2014 is deliberately not asserted here; it needs an unreachable model and stays a manual check.",
   "comment": "present",
-  "findings": { "critical": 0 }
+  "findings": {
+    "critical": 0
+  }
 }
