@@ -371,3 +371,15 @@ test('#560 — the failure still FAILS; this annotates, it does not excuse', () 
   // failure must still exit non-zero and still block the gate.
   assert.notEqual(gradeWith('all:rule').status, 0);
 });
+
+test('#560 — a selection reason containing a quote does not corrupt the manifest', () => {
+  // Review finding on fixtures#2122: `all:unmapped:<path>` carries a real
+  // filename from `git diff --name-only`, and a filename may legally contain a
+  // double quote or a backslash. Unescaped, that produces malformed JSON and
+  // the grader's JSON.parse throws — killing the ENTIRE grading step, not just
+  // the note. run-suite escapes it; this asserts the grader survives the value.
+  const r = gradeWith('all:unmapped:src/we"ird\\path.ts');
+  assert.match(r.stdout, /✗ FAIL/, r.stdout + r.stderr);
+  assert.match(r.stdout, /matches no impact-map rule/, r.stdout);
+  assert.match(r.stdout, /we"ird/, r.stdout);
+});

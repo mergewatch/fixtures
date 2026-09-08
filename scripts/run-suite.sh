@@ -218,6 +218,15 @@ done
 NWO="$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null || echo unknown)"
 {
   SELECTION_WHY="$(cat "${SELECTION_WHY_FILE:-/dev/null}" 2>/dev/null || true)"
+  # JSON-escape before embedding. `all:unmapped:<path>` carries a real filename
+  # from `git diff --name-only`, and a filename may legally contain a double
+  # quote or a backslash. Unescaped, that produces a malformed manifest and the
+  # grader's JSON.parse throws — killing the ENTIRE grading step, not just this
+  # note. Backslash first, or the escapes escape each other; control characters
+  # are dropped since they cannot appear meaningfully in a path we would print.
+  SELECTION_WHY="${SELECTION_WHY//\\/\\\\}"
+  SELECTION_WHY="${SELECTION_WHY//\"/\\\"}"
+  SELECTION_WHY="$(printf '%s' "$SELECTION_WHY" | tr -d '\000-\037')"
   printf '{"repo":"%s","total":%s,"selection":"%s","fixtures":[' "$NWO" "$TOTAL" "${SELECTION_WHY:-unknown}"
   for idx in "${!ENTRIES[@]}"; do
     [ "$idx" -gt 0 ] && printf ','
