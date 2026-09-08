@@ -463,3 +463,68 @@ test('#561 — a healthy run is unchanged', () => {
   assert.match(r.stdout, /Suite cost: ~\$0\.30 across 2 reviewed fixture/, r.stdout);
   assert.doesNotMatch(r.stdout, /UNKNOWN/);
 });
+
+// ─── #561 phase 3 — prefer the payload, keep the prose fallback ─────────────
+//
+// The prose parser reads a details table across a REPO BOUNDARY. A formatter
+// change stops it matching and every fixture reports unknown — loud since
+// phase 1, but loud-and-broken is still broken. The payload is emitted by the
+// same code that renders the table, so the two cannot disagree.
+//
+// The fallback stays because phase 2 shipped on 2026-09-08: reviews posted
+// before that, and stages not yet redeployed, carry no payload. Removing it
+// would trade a drift bug for a rollout bug.
+
+const PAYLOAD = (o) => `<!-- mw-cost:${JSON.stringify(o)} -->`;
+const PROSE = (usd, inTok, outTok) =>
+  `| **Tokens** | ${inTok} in · ${outTok} out · 1 total |\n| **Est. cost** | ~$${usd} (LLM only) |`;
+
+test('#561 — the payload is used when present', () => {
+  const r = gradeCosts({ a: `<!-- mergewatch-review -->\n> 🟢 **5/5**\n\n${PAYLOAD({ inputTokens: 100, outputTokens: 20, estimatedCostUsd: 0.5 })}\n` });
+  assert.match(r.stdout, /Suite cost: ~\$0\.50 across 1 reviewed fixture/, r.stdout);
+  assert.match(r.stdout, /100 in \/ 20 out tokens/, r.stdout);
+});
+
+test('#561 — the payload WINS when it and the prose disagree', () => {
+  // They should never disagree — the formatter emits both from the same
+  // numbers — but if they ever do, the machine-readable one is authoritative
+  // and this makes that explicit rather than order-dependent.
+  const body = `<!-- mergewatch-review -->\n${PROSE('9.9999', '1', '1')}\n${PAYLOAD({ inputTokens: 100, outputTokens: 20, estimatedCostUsd: 0.5 })}\n`;
+  const r = gradeCosts({ a: body });
+  assert.match(r.stdout, /~\$0\.50/, r.stdout);
+  assert.doesNotMatch(r.stdout, /9\.99/);
+});
+
+test('#561 — falls back to the prose when there is no payload', () => {
+  // A review from before phase 2, or from a stage not yet redeployed.
+  const r = gradeCosts({ a: `<!-- mergewatch-review -->\n${PROSE('0.2000', '1,000', '100')}\n` });
+  assert.match(r.stdout, /Suite cost: ~\$0\.20 across 1 reviewed fixture/, r.stdout);
+});
+
+test('#561 — a malformed payload falls back rather than throwing', () => {
+  // Throwing would take down the whole grading step, not one fixture's cost.
+  const body = `<!-- mergewatch-review -->\n<!-- mw-cost:{not json} -->\n${PROSE('0.3000', '5', '5')}\n`;
+  const r = gradeCosts({ a: body });
+  assert.match(r.stdout, /Suite cost: ~\$0\.30/, r.stdout);
+});
+
+test('#561 — a re-review payload uses the cumulative figure', () => {
+  // Matches the prose rule: a re-reviewed PR's real spend is the cumulative
+  // total, not the most recent run.
+  const r = gradeCosts({ a: `<!-- mergewatch-review -->\n${PAYLOAD({ estimatedCostUsd: 0.1, cumulativeCostUsd: 0.75 })}\n` });
+  assert.match(r.stdout, /~\$0\.75/, r.stdout);
+});
+
+test('#561 — an empty payload is unmeasured, consistent with a no-cost review', () => {
+  // I first asserted `{}` should count as "genuinely zero" rather than
+  // unknown. That was a distinction I invented: the formatter emits `{}`
+  // exactly when it also omits the cost ROW, so `{}` and "no cost reported"
+  // are the same state — and the 7 assert-no-review fixtures already land in
+  // `unknown` and get NAMED. Treating one of them differently would split one
+  // condition across two reports.
+  //
+  // What matters is that it does not throw and does not silently become $0.00.
+  const r = gradeCosts({ a: `<!-- mergewatch-review -->\n${PAYLOAD({})}\n` });
+  assert.match(r.stdout, /Suite cost: UNKNOWN/, r.stdout);
+  assert.doesNotMatch(r.stdout, /Suite cost: ~\$0\.00/);
+});
