@@ -622,12 +622,49 @@ function costSummary(rs) {
 
 const COST = costSummary(results);
 
+/**
+ * #560 — was this run's selection specific, or a blanket sweep?
+ *
+ * Twice in one week a fixture failed on a diff that could not have touched it —
+ * `29-cluster` on a YAML permissions block, `22-claim-aware-verify` on token
+ * accounting — and each blocked a production deploy while someone worked out
+ * that the failure was unrelated.
+ *
+ * The selector already knows. `packages/llm-*` carries an explicit `[ALL]`
+ * rule and an unmapped path forces the full suite deliberately, so in both
+ * cases EVERY fixture ran and none was specifically implicated. That is a
+ * materially weaker basis for reading a failure as a regression, and it was
+ * being thrown away between selection and grading.
+ *
+ * This does not hide or retry anything. The failure is still a failure; the
+ * reader is just told what the run can and cannot attribute.
+ */
+function selectionNote(selection) {
+  if (typeof selection !== 'string' || selection === '' || selection === 'unknown') return null;
+  if (selection.startsWith('tags:')) return null;  // specifically implicated
+  if (selection === 'explicit') return null;       // a human named the fixtures
+  if (selection.startsWith('all:unmapped:')) {
+    const path = selection.slice('all:unmapped:'.length);
+    return `the whole suite ran because \`${path}\` matches no impact-map rule, `
+      + 'so this fixture was not specifically implicated by the change';
+  }
+  if (selection === 'all:rule') {
+    return 'the whole suite ran via a blanket ALL impact-map rule, '
+      + 'so this fixture was not specifically implicated by the change';
+  }
+  return null;
+}
+
+const SELECTION_NOTE = selectionNote(manifest.selection);
+
 // --- Report -----------------------------------------------------------------
 if (AS_JSON) {
   console.log(JSON.stringify({
     repo,
     stage: STAGE ?? (COMPARE ? 'compare' : 'prod'),
     expectations: { source: SOURCE.label, kind: SOURCE.kind, count: expectCount },
+    selection: manifest.selection ?? 'unknown',
+    selectionNote: SELECTION_NOTE,
     cost: COST,
     results,
   }, null, 2));
@@ -647,6 +684,11 @@ if (AS_JSON) {
     const pr = r.pr == null ? '' : ` #${r.pr}`;
     console.log(`${ICON[r.verdict]} ${r.verdict.padEnd(8)} ${r.fixture}${pr}`);
     for (const n of r.notes ?? []) console.log(`             ${n}`);
+    // #560 — attribution, not exculpation: the failure stands, but a reader
+    // deciding whether to revert should know the run cannot tie it to the diff.
+    if (r.verdict === 'FAIL' && SELECTION_NOTE) {
+      console.log(`             NOTE: ${SELECTION_NOTE}`);
+    }
   }
   const tally = (v) => results.filter((r) => r.verdict === v).length;
   console.log('');

@@ -69,6 +69,12 @@ if [ "${#SELECT_ARGS[@]}" -gt 0 ]; then
     echo "Pass either fixture names or selection flags, not both." >&2
     exit 2
   fi
+  # #560 — capture HOW the selection resolved, so a failure on a fixture that
+  # was swept in by a blanket rule can be reported differently from one the
+  # change specifically implicated. Set BEFORE the selector runs, or the flag
+  # never reaches it.
+  SELECTION_WHY_FILE="$(mktemp)"
+  SELECT_ARGS+=(--why-file "$SELECTION_WHY_FILE")
   while IFS= read -r fx; do
     [ -n "$fx" ] && FIXTURES+=("$fx")
   done < <("$REPO_ROOT/scripts/select-fixtures.sh" "${SELECT_ARGS[@]}") || exit $?
@@ -211,7 +217,8 @@ done
 # --- write manifest ---------------------------------------------------------
 NWO="$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null || echo unknown)"
 {
-  printf '{"repo":"%s","total":%s,"fixtures":[' "$NWO" "$TOTAL"
+  SELECTION_WHY="$(cat "${SELECTION_WHY_FILE:-/dev/null}" 2>/dev/null || true)"
+  printf '{"repo":"%s","total":%s,"selection":"%s","fixtures":[' "$NWO" "$TOTAL" "${SELECTION_WHY:-unknown}"
   for idx in "${!ENTRIES[@]}"; do
     [ "$idx" -gt 0 ] && printf ','
     printf '%s' "${ENTRIES[$idx]}"
