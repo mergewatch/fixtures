@@ -25,6 +25,7 @@ set -uo pipefail
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
 MAP="$REPO_ROOT/e2e/impact-map.yml"
+WHY_FILE=""
 
 TAGS=(); MODES=(); CHANGED=""; EXPLAIN="${EXPLAIN:-0}"; AUTOMATION=""; GRADING=""
 
@@ -33,6 +34,10 @@ while [ $# -gt 0 ]; do
     --tag)           TAGS+=("$2"); shift 2 ;;
     --mode)          MODES+=("$2"); shift 2 ;;
     --changed-files) CHANGED="$2"; shift 2 ;;
+    # #560 — record HOW the selection resolved, so the grader can tell a
+    # fixture that was specifically implicated from one swept in by a blanket
+    # rule. Written as one line: `tags:<list>` or `all:<why>` or `explicit`.
+    --why-file) WHY_FILE="$2"; shift 2 ;;
     --automated)     AUTOMATION="automated"; shift ;;
     --manual)        AUTOMATION="manual"; shift ;;
     --graded)        GRADING="graded"; shift ;;
@@ -116,6 +121,9 @@ for m in "${MODES[@]:-}"; do
   known_mode "$m" || { echo "unknown mode: $m" >&2; exit 2; }
 done
 
+# #560 — one line describing why this selection is what it is.
+write_why() { [ -n "$WHY_FILE" ] && printf '%s\n' "$1" > "$WHY_FILE"; return 0; }
+
 # --- changed paths -> tags --------------------------------------------------
 # Returns 0 and prints tags; prints the literal token ALL when the whole suite
 # is required (an explicit ALL entry, or a path no rule covers).
@@ -143,6 +151,7 @@ resolve_changed_tags() {
     done < "$MAP"
     if [ "$matched" -eq 0 ]; then
       [ "$EXPLAIN" = "1" ] && echo "unmapped path forces full suite: $path" >&2
+      write_why "all:unmapped:$path"
       echo "ALL"; return 0
     fi
   done < <(if [ "$src" = "-" ]; then cat; else cat "$src"; fi)
@@ -154,6 +163,10 @@ resolve_changed_tags() {
 if [ -n "$CHANGED" ]; then
   RESOLVED="$(resolve_changed_tags "$CHANGED")"
   if echo "$RESOLVED" | grep -qw ALL; then
+    # An explicit `[ALL]` rule, unless resolve_changed_tags already recorded an
+    # unmapped path. Either way every fixture runs, so none is specifically
+    # implicated by the change.
+    [ -s "${WHY_FILE:-/dev/null}" ] || write_why "all:rule"
     # Still honour --automated/--manual: "everything is impacted" is a statement
     # about scope, not about which fixtures can actually run unattended.
     for f in "${ALL_FIXTURES[@]}"; do
@@ -166,10 +179,13 @@ if [ -n "$CHANGED" ]; then
   if [ -z "$(echo "$RESOLVED" | tr -d ' ')" ]; then
     exit 0
   fi
+  write_why "tags:$(echo "$RESOLVED" | tr -s ' ' ',' | sed 's/,$//')"
   for t in $RESOLVED; do TAGS+=("$t"); done
 fi
 
 # --- apply filters ----------------------------------------------------------
+if [ -z "$CHANGED" ]; then write_why "explicit"; fi
+
 if [ "${#TAGS[@]}" -eq 0 ] && [ "${#MODES[@]}" -eq 0 ]; then
   for f in "${ALL_FIXTURES[@]}"; do
     automation_ok "$f" && grading_ok "$f" && echo "$f"

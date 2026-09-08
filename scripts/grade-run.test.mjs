@@ -281,3 +281,105 @@ test('#536 — --json carries the same totals', () => {
   assert.ok(Math.abs(out.cost.totalUsd - 0.33) < 1e-9, r.stdout.slice(0, 300));
   assert.equal(out.cost.perFixture[0].fixture, 'a');
 });
+
+// ─── #560 — a failure the diff cannot explain should say so ─────────────────
+//
+// Twice in one week a fixture failed on a change that could not have touched
+// it — 29-cluster on a YAML permissions block, 22-claim-aware-verify on token
+// accounting — and each blocked a production deploy while someone worked out
+// the failure was unrelated. The selector already knew: both runs swept the
+// whole suite via a blanket rule, so no fixture was specifically implicated.
+// That fact was thrown away between selection and grading.
+
+/** A manifest carrying a selection reason. */
+function manifestWithSelection(dir, name, fixtures, selection) {
+  const p = join(dir, name);
+  writeFileSync(p, JSON.stringify({ repo: 'acme/fixtures', total: fixtures.length, selection, fixtures }));
+  return p;
+}
+
+/** gh shim serving a comment that fails a `comment: present` expectation. */
+function ghFailing(dir) {
+  const binDir = mkdtempSync(join(tmpdir(), 'gh-fail-'));
+  writeFileSync(join(binDir, 'gh'), `#!/usr/bin/env node
+const a = process.argv.slice(2);
+if (a[0] === 'pr' && a[1] === 'view') {
+  process.stdout.write(JSON.stringify({ headRefOid: 'x', state: 'OPEN', comments: [], reviews: [], statusCheckRollup: [], reactionGroups: [] }));
+  process.exit(0);
+}
+process.stdout.write('[]');
+`);
+  spawnSync('chmod', ['755', join(binDir, 'gh')]);
+  return binDir;
+}
+
+function gradeWith(selection) {
+  const dir = mkdtempSync(join(tmpdir(), 'grade-sel-'));
+  git(dir, 'init', '--quiet', '-b', 'main');
+  git(dir, 'config', 'user.email', 'e2e@test');
+  git(dir, 'config', 'user.name', 'e2e');
+  write(dir, 'fixtures/a/meta.env', 'TAGS=correctness\n');
+  write(dir, 'fixtures/a/expect.json', '{"comment":"present"}');
+  git(dir, 'add', '-A');
+  git(dir, 'commit', '--quiet', '-m', 'f');
+  git(dir, 'update-ref', 'refs/remotes/origin/main', git(dir, 'rev-parse', 'HEAD'));
+  const mf = manifestWithSelection(dir, 'run.json', [{ fixture: 'a', pr: 1, applied: 'ok' }], selection);
+  const bin = ghFailing(dir);
+  return spawnSync('node', [SCRIPT, '--manifest', mf], {
+    cwd: dir, encoding: 'utf8',
+    env: { ...process.env, PATH: `${bin}:${process.env.PATH}` },
+  });
+}
+
+test('#560 — a blanket ALL rule is disclosed on a failure', () => {
+  const r = gradeWith('all:rule');
+  assert.match(r.stdout, /✗ FAIL/, r.stdout);
+  assert.match(r.stdout, /blanket ALL impact-map rule/, r.stdout);
+  assert.match(r.stdout, /not specifically implicated/, r.stdout);
+});
+
+test('#560 — an unmapped path is named, so the fix is obvious', () => {
+  // Naming the path turns "why did everything run" into a one-line answer:
+  // add it to the impact map.
+  const r = gradeWith('all:unmapped:.github/workflows/deploy.yml');
+  assert.match(r.stdout, /\.github\/workflows\/deploy\.yml/, r.stdout);
+  assert.match(r.stdout, /matches no impact-map rule/, r.stdout);
+});
+
+test('#560 — a tag-matched selection adds NO note', () => {
+  // The fixture WAS specifically implicated, so the failure reads as a plain
+  // failure. Softening every failure would be worse than saying nothing.
+  const r = gradeWith('tags:inline,fp');
+  assert.match(r.stdout, /✗ FAIL/, r.stdout);
+  assert.doesNotMatch(r.stdout, /not specifically implicated/);
+});
+
+test('#560 — a human-named run adds no note', () => {
+  const r = gradeWith('explicit');
+  assert.doesNotMatch(r.stdout, /not specifically implicated/);
+});
+
+test('#560 — a manifest with no selection field still grades', () => {
+  // Back-compat: manifests written before this change, and hand-written ones.
+  const r = gradeWith(undefined);
+  assert.match(r.stdout, /✗ FAIL/, r.stdout);
+  assert.doesNotMatch(r.stdout, /not specifically implicated/);
+});
+
+test('#560 — the failure still FAILS; this annotates, it does not excuse', () => {
+  // The whole point is attribution without exculpation. A blanket-selected
+  // failure must still exit non-zero and still block the gate.
+  assert.notEqual(gradeWith('all:rule').status, 0);
+});
+
+test('#560 — a selection reason containing a quote does not corrupt the manifest', () => {
+  // Review finding on fixtures#2122: `all:unmapped:<path>` carries a real
+  // filename from `git diff --name-only`, and a filename may legally contain a
+  // double quote or a backslash. Unescaped, that produces malformed JSON and
+  // the grader's JSON.parse throws — killing the ENTIRE grading step, not just
+  // the note. run-suite escapes it; this asserts the grader survives the value.
+  const r = gradeWith('all:unmapped:src/we"ird\\path.ts');
+  assert.match(r.stdout, /✗ FAIL/, r.stdout + r.stderr);
+  assert.match(r.stdout, /matches no impact-map rule/, r.stdout);
+  assert.match(r.stdout, /we"ird/, r.stdout);
+});
