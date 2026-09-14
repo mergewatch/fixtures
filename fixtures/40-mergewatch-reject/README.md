@@ -31,10 +31,10 @@ After the first review renders the inline thread, reply on the thread:
 ## Expected outcomes
 
 - [ ] The `FindingDispositionRecord` has `disputeCount = 1` and `rejectReasons[0] = { category: 'style-disagreement', text: 'we use snake_case for python here', at: <iso> }`
-- [ ] The bot posts a structured confirmation reply
+- [ ] The bot appends a confirmation **footer to the finding comment** — *"✅ Marked **rejected** (`<category>`) — won't re-raise on this PR while the code is unchanged."* **Not** a thread reply (#190: a reply is auto-wrapped into a standalone COMMENTED review)
 - [ ] The GitHub thread is **NOT** auto-resolved
 - [ ] Recognised categories: `already-handled`, `out-of-scope`, `wrong-target`, `style-disagreement`, `other`
-- [ ] Unrecognised category (`/mergewatch reject typo-here foo`) → silently coerced to `{ category: 'other', text: 'typo-here foo' }`; bot's confirming reply says "recording as `other`"
+- [ ] Unrecognised category (`/mergewatch reject typo-here foo`) → silently coerced to `{ category: 'other', text: 'typo-here foo' }`; the confirmation footer names `other` and explains the fallback
 - [ ] Multiple `/mergewatch reject` replies on the same thread append to `rejectReasons[]` (don't overwrite)
 - [ ] Top-level `## mergewatch triage` continues to function (FB-D is an inline-thread addition, not a replacement)
 - [ ] `/resolve` and `/reject` are orthogonal — only `/resolve` auto-resolves the thread
