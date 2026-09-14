@@ -31,7 +31,7 @@ After the first review renders the inline thread, reply on the thread:
 ## Expected outcomes
 
 - [ ] The `FindingDispositionRecord` has `disputeCount = 1` and `rejectReasons[0] = { category: 'style-disagreement', text: 'we use snake_case for python here', at: <iso> }`
-- [ ] The bot appends a confirmation **footer to the finding comment** — `✅ Marked **rejected** (\`<category>\`) — won't re-raise on this PR while the code is unchanged.` **Not** a thread reply (#190: a reply is auto-wrapped into a standalone COMMENTED review)
+- [ ] The bot appends a confirmation **footer to the finding comment** — *"✅ Marked **rejected** (`<category>`) — won't re-raise on this PR while the code is unchanged."* **Not** a thread reply (#190: a reply is auto-wrapped into a standalone COMMENTED review)
 - [ ] The GitHub thread is **NOT** auto-resolved
 - [ ] Recognised categories: `already-handled`, `out-of-scope`, `wrong-target`, `style-disagreement`, `other`
 - [ ] Unrecognised category (`/mergewatch reject typo-here foo`) → silently coerced to `{ category: 'other', text: 'typo-here foo' }`; the confirmation footer names `other` and explains the fallback
