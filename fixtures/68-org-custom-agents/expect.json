@@ -1,8 +1,13 @@
 {
-  "_source": "README Expected outcomes — E2E-68. The org `no-todo` agent is seeded advisory (scripts/seed-org-agent.sh, PREREQ_CHECK-gated), and advisory is precisely the mode where a critical-severity org finding must NOT block: the check still passes and no blocking title appears. That is a deterministic enforcement rule, not model judgement. The admin/member 403 API surface, the blocking-mode walk, the name-clash precedence and the Postgres parity all need the manual toggle in Settings and stay manual.",
+  "_source": "README Expected outcomes \u2014 E2E-68. The org `no-todo` agent is seeded advisory (scripts/seed-org-agent.sh, PREREQ_CHECK-gated), and advisory is precisely the mode where a critical-severity org finding must NOT block: the check still passes and no blocking title appears. That is a deterministic enforcement rule, not model judgement. The admin/member 403 API surface, the blocking-mode walk, the name-clash precedence and the Postgres parity all need the manual toggle in Settings and stay manual.\n\nmergewatch.ai#543 \u2014 DISCRIMINATOR. This fixture previously could not tell its pass from the failure it names: the README's tell was 'an info TODO finding instead of a critical one', but severity was the MODEL's choice (severityDefault was a fallback applied only when the model omitted one). An info finding was therefore equally consistent with the org definition winning and with the repo definition shadowing it, so the check could not fail for the reason it existed to catch.\n\n#543 made the configured severity a FLOOR on the winning definition. Severity is now determined by WHICH DEFINITION WAS SELECTED, not by model judgement:\n  org wins  -> floor critical -> the finding IS critical (guaranteed)\n  repo wins -> floor info     -> info, and the repo prompt ('Do not treat them as important') actively discourages escalation\n\nSo `critical: {min: 1}` now observes precedence. It is sound in the failure direction, which is what a gate needs: org-wins guarantees a critical, therefore NO critical proves the org definition did not win. One-sided \u2014 it cannot fail because the model found MORE than expected.",
   "comment": "present",
   "check": "success",
   "mustNotContain": [
     "Blocked by org agent"
-  ]
+  ],
+  "findings": {
+    "critical": {
+      "min": 1
+    }
+  }
 }
