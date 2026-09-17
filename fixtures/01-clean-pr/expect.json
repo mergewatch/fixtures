@@ -1,12 +1,26 @@
 {
-  "_source": "README Expected outcomes — E2E-01",
+  "_source": "README Expected outcomes \u2014 E2E-01 mergewatch.ai#626: the clean-verdict wording changed from \"All clear! No issues found \u2014 this PR looks good to go\" to \"Looks good to me! I didn't find anything worth raising in this diff\". The old text asserted ABSENCE the review never verified (nothing checks that silence was right) and appended a merge recommendation covering tests and CI that MergeWatch never reads. The new phrasing is a first-person judgement, which is what the product is actually entitled to say \u2014 it already submits a formal APPROVE at 4-5.",
   "comment": "present",
   "score": 5,
-  "findings": { "critical": 0, "warning": 0 },
+  "findings": {
+    "critical": 0,
+    "warning": 0
+  },
   "check": "success",
   "reviewState": "APPROVED",
   "reviewBody": "empty",
-  "mustContain": ["All clear!"],
-  "mustNotContain": ["Requires your attention"],
-  "reactions": { "present": ["THUMBS_UP"], "absent": ["EYES"] }
+  "mustContain": [
+    "Looks good to me!"
+  ],
+  "mustNotContain": [
+    "Requires your attention"
+  ],
+  "reactions": {
+    "present": [
+      "THUMBS_UP"
+    ],
+    "absent": [
+      "EYES"
+    ]
+  }
 }
