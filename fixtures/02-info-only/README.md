@@ -14,11 +14,11 @@ A PR that produces ONLY info-severity findings should reconcile to 5/5 (not the 
       This fixture has info findings, so it gets the **info-only** 5/5 label — "No issues
       found in the diff" would contradict the notes rendered below it (mergewatch.ai#516).
 - [ ] Verdict reason line: "No action items — only informational notes" (NOT "Multiple warnings")
-- [ ] Action-items section: `🎉 All clear! No issues found`
+- [ ] Action-items section: `👍 Looks good to me!`
 - [ ] An "Info (N)" collapsible section IS present with ≥1 finding
 - [ ] Formal PR review state = **Approved**
 
 ## Failure modes
 
-- ❌ 3/5 or 4/5 with "All clear!" — bug #134 reappearing
+- ❌ 3/5 or 4/5 with "Looks good to me!" — bug #134 reappearing
 - ❌ "Requires your attention" table appears — only action items (critical/warning) should populate it

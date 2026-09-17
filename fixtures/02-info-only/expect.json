@@ -1,10 +1,17 @@
 {
-  "_source": "README Expected outcomes — E2E-02, minus the info-count assertion. The `\"info\": { \"min\": 1 }` rule was REMOVED after two E2E gate runs 20 minutes apart, on identical code, disagreed: run A passed, run B reported `info findings 0 below min 1`. Whether an info-level nit surfaces at all is model judgement, and the `correctness` tag means a DETERMINISTIC contract — so that one rule did not belong under it. Everything below is mechanical and still asserted: a clean PR renders the all-clear shape, scores 5, and approves. If the info note becomes deterministic, restore the rule rather than loosening anything else.",
+  "_source": "README Expected outcomes \u2014 E2E-02, minus the info-count assertion. The `\"info\": { \"min\": 1 }` rule was REMOVED after two E2E gate runs 20 minutes apart, on identical code, disagreed: run A passed, run B reported `info findings 0 below min 1`. Whether an info-level nit surfaces at all is model judgement, and the `correctness` tag means a DETERMINISTIC contract \u2014 so that one rule did not belong under it. Everything below is mechanical and still asserted: a clean PR renders the all-clear shape, scores 5, and approves. If the info note becomes deterministic, restore the rule rather than loosening anything else. mergewatch.ai#626: the clean-verdict wording changed from \"All clear! No issues found \u2014 this PR looks good to go\" to \"Looks good to me! I didn't find anything worth raising in this diff\". The old text asserted ABSENCE the review never verified (nothing checks that silence was right) and appended a merge recommendation covering tests and CI that MergeWatch never reads. The new phrasing is a first-person judgement, which is what the product is actually entitled to say \u2014 it already submits a formal APPROVE at 4-5.",
   "comment": "present",
   "score": 5,
-  "findings": { "critical": 0, "warning": 0 },
+  "findings": {
+    "critical": 0,
+    "warning": 0
+  },
   "check": "success",
   "reviewState": "APPROVED",
-  "mustContain": ["All clear!"],
-  "mustNotContain": ["Multiple warnings"]
+  "mustContain": [
+    "Looks good to me!"
+  ],
+  "mustNotContain": [
+    "Multiple warnings"
+  ]
 }
