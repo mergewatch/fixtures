@@ -79,4 +79,10 @@ Then walk the enforcement and scoping steps:
 - ❌ A non-admin can edit org agents (the write succeeds).
 - ❌ A blocking critical finding still APPROVES or passes the check.
 - ❌ An out-of-scope or non-matching-targeting agent runs anyway.
-- ❌ The repo `.mergewatch.yml` agent shadows or disables the org agent of the same name (precedence inverted — the tell is an `info` TODO finding instead of a `critical` one).
+- ❌ The repo `.mergewatch.yml` agent shadows or disables the org agent of the same name
+  (precedence inverted). **The tell is now graded**: `findings.critical: {min: 1}`.
+  Since mergewatch.ai#543 the configured severity is a FLOOR on the winning definition,
+  so org-wins *guarantees* a `critical` — and no critical proves the org definition did
+  not win. Before #543 severity was the model's choice, so an `info` finding was equally
+  consistent with passing and with the failure this line names, and the fixture could not
+  fail for its own stated reason.
