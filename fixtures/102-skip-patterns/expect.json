@@ -1,0 +1,9 @@
+{
+  "_source": "README Expected outcomes — E2E-102 (skipPatterns adds a source path to the trivial list). The PR changes exactly two files, src/legacy/csv-import.ts and .mergewatch.yml, and NEITHER matches any built-in SKIP_PATTERNS entry — verified against the shipped list, not assumed. So a skip here can only come from skipPatterns being honoured: drop the key from the overlay and shouldSkipPR returns null, i.e. a normal review with a summary comment and a success check. checkSummaryMatches pins the smart-skip path — only shouldSkipPR emits an `Only … changed` reason, so a skip arriving from the wrong cause (draft, ignoreLabels, maxFiles, autoReview off) fails this fixture instead of passing it. The category word inside that reason is deliberately NOT asserted: it comes from a heuristic over the file names, reads `config` here because .mergewatch.yml is dot-prefixed, and is not the mechanism under test.",
+  "comment": "absent",
+  "check": "neutral",
+  "checkTitleMatches": "skip",
+  "checkSummaryMatches": "Only .+ changed",
+  "reviewState": "none",
+  "inlineComments": 0
+}
