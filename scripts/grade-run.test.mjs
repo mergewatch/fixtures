@@ -61,9 +61,9 @@ function repoWithStaleTree() {
   return { dir, baseline, tooling };
 }
 
-function manifest(dir, name, fixtures) {
+function manifest(dir, name, fixtures, extra = {}) {
   const p = join(dir, name);
-  writeFileSync(p, JSON.stringify({ repo: 'acme/fixtures', total: fixtures.length, fixtures }));
+  writeFileSync(p, JSON.stringify({ repo: 'acme/fixtures', total: fixtures.length, ...extra, fixtures }));
   return p;
 }
 
@@ -527,4 +527,102 @@ test('#561 — an empty payload is unmeasured, consistent with a no-cost review'
   const r = gradeCosts({ a: `<!-- mergewatch-review -->\n${PAYLOAD({})}\n` });
   assert.match(r.stdout, /Suite cost: UNKNOWN/, r.stdout);
   assert.doesNotMatch(r.stdout, /Suite cost: ~\$0\.00/);
+});
+
+// ─── #584 — the overlays and the expectations must be the same commit ────────
+//
+// Before run-suite.sh pinned a snapshot, they routinely were not. The gate
+// resets the tree to the e2e-baseline tag before the suite, so overlays came
+// from the tag; this script has always read expect.json from origin/main.
+// Editing expect.json took effect immediately, editing overlay/ did nothing, and
+// the output said `expectations: origin/main @ <sha>` either way. A fixture fix
+// was diagnosed as wrong twice because of it.
+//
+// run-suite.sh now writes the commit it pinned into the manifest as `snapshot`.
+// These cover the refusal, and — more importantly — the two cases that must NOT
+// refuse, because a preflight that blocks legitimate local runs gets removed.
+
+test('an explicit --expect-ref that disagrees with the manifest snapshot exits 2', () => {
+  const dir = repoWithExpectations(['a']);
+  const bin = ghShim(dir, { 1: costBlock('0.1000', '10', '1') });
+  const mf = manifest(dir, 'run.json', [{ fixture: 'a', pr: 1, applied: 'ok' }],
+    { snapshot: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' });
+  const r = runWithGh(dir, bin, '--manifest', mf, '--expect-ref', 'origin/main');
+  assert.equal(r.status, 2, r.stdout + r.stderr);
+  assert.match(r.stderr, /snapshot and expectation source disagree/);
+  // Both sides named, or the reader cannot tell which half is stale.
+  assert.match(r.stderr, /overlays came from aaaaaaa, expectations from \w{7}/);
+});
+
+test('a manifest with no snapshot at all is refused under an explicit --expect-ref', () => {
+  // Every manifest written before #584 looks like this, and so does any manifest
+  // written by something other than run-suite.sh. In CI — the one place that
+  // passes --expect-ref — that is not a run worth grading.
+  const dir = repoWithExpectations(['a']);
+  const bin = ghShim(dir, { 1: costBlock('0.1000', '10', '1') });
+  const mf = manifest(dir, 'run.json', [{ fixture: 'a', pr: 1, applied: 'ok' }]);
+  const r = runWithGh(dir, bin, '--manifest', mf, '--expect-ref', 'origin/main');
+  assert.equal(r.status, 2, r.stdout + r.stderr);
+  assert.match(r.stderr, /records no `snapshot`/);
+});
+
+test('the failure is an ERROR, not a note printed above a green verdict', () => {
+  // #584's whole complaint is silence. A warning over a passing run reads as
+  // "noted", which is how this class of defect survives — see #626/#634/#640.
+  const dir = repoWithExpectations(['a']);
+  const bin = ghShim(dir, { 1: costBlock('0.1000', '10', '1') });
+  const mf = manifest(dir, 'run.json', [{ fixture: 'a', pr: 1, applied: 'ok' }],
+    { snapshot: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' });
+  const r = runWithGh(dir, bin, '--manifest', mf, '--expect-ref', 'origin/main');
+  assert.doesNotMatch(r.stdout, /Suite cost/, 'it graded anyway');
+  assert.match(r.stderr, /^✗/m);
+});
+
+test('a matching snapshot grades normally and says nothing', () => {
+  const dir = repoWithExpectations(['a']);
+  const bin = ghShim(dir, { 1: costBlock('0.1000', '10', '1') });
+  const sha = git(dir, 'rev-parse', 'origin/main');
+  const mf = manifest(dir, 'run.json', [{ fixture: 'a', pr: 1, applied: 'ok' }], { snapshot: sha });
+  const r = runWithGh(dir, bin, '--manifest', mf, '--expect-ref', 'origin/main');
+  assert.doesNotMatch(r.stderr, /disagree/);
+  assert.match(r.stdout, /Suite cost/, r.stdout + r.stderr);
+});
+
+test('a SHORT --expect-ref matching the same commit is not a mismatch', () => {
+  // The comparison is on resolved commits, never on the ref STRING. `--expect-ref
+  // <short sha>` and a full-sha snapshot name one commit; comparing text would
+  // reject it, and a preflight with false positives gets switched off.
+  const dir = repoWithExpectations(['a']);
+  const bin = ghShim(dir, { 1: costBlock('0.1000', '10', '1') });
+  const sha = git(dir, 'rev-parse', 'origin/main');
+  const mf = manifest(dir, 'run.json', [{ fixture: 'a', pr: 1, applied: 'ok' }], { snapshot: sha });
+  const r = runWithGh(dir, bin, '--manifest', mf, '--expect-ref', sha.slice(0, 8));
+  assert.doesNotMatch(r.stderr, /disagree/, r.stdout + r.stderr);
+  assert.match(r.stdout, /Suite cost/, r.stdout + r.stderr);
+});
+
+test('a local run with no --expect-ref warns but still grades', () => {
+  // A developer running /verify-suite by hand has not claimed anything about
+  // which commit anything came from. Refusing there would make the escape hatch
+  // "stop using grade-run", which is worse than a warning.
+  const dir = repoWithExpectations(['a']);
+  const bin = ghShim(dir, { 1: costBlock('0.1000', '10', '1') });
+  const mf = manifest(dir, 'run.json', [{ fixture: 'a', pr: 1, applied: 'ok' }],
+    { snapshot: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' });
+  const r = runWithGh(dir, bin, '--manifest', mf);
+  assert.match(r.stderr, /^⚠/m);
+  assert.match(r.stdout, /Suite cost/, r.stdout + r.stderr);
+});
+
+test('--expect-ref worktree warns but still grades', () => {
+  // The documented way to iterate on expectations without committing them. It is
+  // an explicit statement that the two halves differ, so refusing would break
+  // the only workflow that legitimately wants the mismatch.
+  const dir = repoWithExpectations(['a']);
+  const bin = ghShim(dir, { 1: costBlock('0.1000', '10', '1') });
+  const mf = manifest(dir, 'run.json', [{ fixture: 'a', pr: 1, applied: 'ok' }],
+    { snapshot: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' });
+  const r = runWithGh(dir, bin, '--manifest', mf, '--expect-ref', 'worktree');
+  assert.match(r.stderr, /^⚠/m);
+  assert.match(r.stdout, /Suite cost/, r.stdout + r.stderr);
 });

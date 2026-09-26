@@ -35,7 +35,27 @@ NAME="$1"
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
 
-FIXTURE_DIR="fixtures/$NAME"
+# --- where the fixture DEFINITION is read from (mergewatch.ai#584) ----------
+# REPO_ROOT is the git working tree this script branches, overlays, commits and
+# pushes in. It is NOT necessarily where the fixture's own files live.
+#
+# In CI the two differ, and that is the whole of #584. The gate runs
+# reset-env.sh immediately before the suite, which does `git reset --hard
+# e2e-baseline` on main — so every tracked file in the tree, fixtures/ and
+# scripts/ included, becomes the TAG's copy. A fixture fix merged to main was
+# therefore inert until somebody moved the tag by hand, and the run graded the
+# OLD overlay while reporting a clean apply. That is silent, and it cost two
+# separate re-diagnoses of bugs that had already been correctly fixed.
+#
+# run-suite.sh now extracts one pinned commit into a tmpdir outside the repo and
+# exports E2E_CONTENT_ROOT pointing at it. Unset — a standalone run from a normal
+# checkout — this is the working tree, exactly as before.
+CONTENT_ROOT="${E2E_CONTENT_ROOT:-$REPO_ROOT}"
+
+FIXTURE_DIR="$CONTENT_ROOT/fixtures/$NAME"
+# Repo-relative form, for messages. $FIXTURE_DIR may be a tmpdir that is gone by
+# the time anyone reads the output.
+FIXTURE_REL="fixtures/$NAME"
 META="$FIXTURE_DIR/meta.env"
 OVERLAY="$FIXTURE_DIR/overlay"
 
@@ -81,7 +101,7 @@ $NAME is a manual fixture (no overlay, no new PR).
 
 $BODY
 
-See $FIXTURE_DIR/README.md for the procedure.
+See $FIXTURE_REL/README.md for the procedure.
 EOF
   exit 0
 fi
@@ -92,7 +112,7 @@ $NAME reuses an existing PR (${REUSES:-see README}).
 
 $BODY
 
-See $FIXTURE_DIR/README.md for the next step (typically a PR comment or push).
+See $FIXTURE_REL/README.md for the next step (typically a PR comment or push).
 EOF
   exit 0
 fi
@@ -179,7 +199,7 @@ if [ -n "$PUSH_TO_EXISTING_BRANCH" ]; then
   fi
   echo ""
   echo "Wait ~30-90s for MergeWatch re-review, then verify against:"
-  echo "  $FIXTURE_DIR/README.md"
+  echo "  $FIXTURE_REL/README.md"
   exit 0
 fi
 
@@ -216,6 +236,16 @@ if [ -n "$PREREQ_CHECK" ]; then
   # Word-split into command + args without eval: no metacharacter, pipeline,
   # or command-substitution interpretation of the meta.env-controlled value.
   read -ra PREREQ_CMD <<< "$PREREQ_CHECK"
+  # A relative command names a script that ships WITH the fixture definition
+  # (E2E-68: `scripts/seed-org-agent.sh --verify`), so resolve it against
+  # CONTENT_ROOT. Under a reset tree $REPO_ROOT/scripts is the tag's copy, and a
+  # prereq script added or fixed on main would silently run its old version — or
+  # not exist, which exit 3 would then report as "prerequisite missing" rather
+  # than "your checkout is stale". A bare command name stays on PATH.
+  case "${PREREQ_CMD[0]}" in
+    /*)  ;;
+    */*) PREREQ_CMD[0]="$CONTENT_ROOT/${PREREQ_CMD[0]}" ;;
+  esac
   if ! (cd "$REPO_ROOT" && "${PREREQ_CMD[@]}"); then
     echo "Prerequisite check failed for $NAME — skipping apply." >&2
     echo "  $PREREQ_CHECK" >&2
@@ -300,4 +330,4 @@ if [ -n "$POST_OPEN_HINT" ]; then
 fi
 echo ""
 echo "Wait ~30-90s for MergeWatch, then verify against:"
-echo "  $FIXTURE_DIR/README.md"
+echo "  $FIXTURE_REL/README.md"
