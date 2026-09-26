@@ -30,11 +30,16 @@ set -uo pipefail
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
 
+# Fixture definitions come from E2E_CONTENT_ROOT when run-suite.sh has pinned a
+# snapshot (mergewatch.ai#584); from the working tree otherwise. Under the reset
+# tree the gate runs in, $REPO_ROOT/fixtures is the e2e-baseline TAG's copy.
+CONTENT_ROOT="${E2E_CONTENT_ROOT:-$REPO_ROOT}"
+
 command -v gh >/dev/null 2>&1 || { echo "gh CLI not found on PATH." >&2; exit 1; }
 
 FIXTURES=("$@")
 if [ "${#FIXTURES[@]}" -eq 0 ]; then
-  while IFS= read -r f; do FIXTURES+=("$f"); done < <(ls -1 fixtures)
+  while IFS= read -r f; do FIXTURES+=("$f"); done < <(ls -1 "$CONTENT_ROOT/fixtures")
 fi
 
 # One API call. A failure here must not block the run — it would trade a real
@@ -46,7 +51,7 @@ OPEN_BRANCHES="$(gh pr list --state open --limit 200 --json headRefName --jq '.[
 
 BLOCKED=()
 for name in "${FIXTURES[@]}"; do
-  meta="fixtures/$name/meta.env"
+  meta="$CONTENT_ROOT/fixtures/$name/meta.env"
   [ -f "$meta" ] || continue
   branch="$(grep -E '^BRANCH=' "$meta" | head -1 | cut -d= -f2- | tr -d '\r')"
   [ -n "$branch" ] || continue

@@ -24,7 +24,12 @@ set -uo pipefail
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
-MAP="$REPO_ROOT/e2e/impact-map.yml"
+
+# Fixture definitions come from E2E_CONTENT_ROOT when run-suite.sh has pinned a
+# snapshot (mergewatch.ai#584); from the working tree otherwise. Under the reset
+# tree the gate runs in, $REPO_ROOT/fixtures is the e2e-baseline TAG's copy.
+CONTENT_ROOT="${E2E_CONTENT_ROOT:-$REPO_ROOT}"
+MAP="$CONTENT_ROOT/e2e/impact-map.yml"
 WHY_FILE=""
 
 TAGS=(); MODES=(); CHANGED=""; EXPLAIN="${EXPLAIN:-0}"; AUTOMATION=""; GRADING=""
@@ -49,7 +54,7 @@ done
 
 # --- fixture metadata -------------------------------------------------------
 fixture_field() {  # <fixture> <KEY>
-  local meta="$REPO_ROOT/fixtures/$1/meta.env"
+  local meta="$CONTENT_ROOT/fixtures/$1/meta.env"
   [ -f "$meta" ] || return 0
   grep -E "^$2=" "$meta" | head -1 | cut -d= -f2- | tr -d '\r'
 }
@@ -76,7 +81,7 @@ automation_ok() {
   esac
 }
 
-is_graded() { [ -f "$REPO_ROOT/fixtures/$1/expect.json" ]; }
+is_graded() { [ -f "$CONTENT_ROOT/fixtures/$1/expect.json" ]; }
 
 # Keeps or drops one fixture by --graded / --ungraded.
 #
@@ -93,7 +98,7 @@ grading_ok() {
 }
 
 ALL_FIXTURES=()
-while IFS= read -r fx; do [ -n "$fx" ] && ALL_FIXTURES+=("$fx"); done < <(ls -1 fixtures | sort)
+while IFS= read -r fx; do [ -n "$fx" ] && ALL_FIXTURES+=("$fx"); done < <(ls -1 "$CONTENT_ROOT/fixtures" | sort)
 
 # Reject filters that match no fixture, rather than returning an empty set.
 known_tag() {

@@ -61,6 +61,11 @@ const COMPARE = has('--compare');
 const AS_JSON = has('--json');
 const STAGE = COMPARE ? null : flag('--stage', null); // null → prod
 const EXPECT_REF = flag('--expect-ref', 'origin/main');
+// Whether the CALLER named the ref, as opposed to falling back to the default.
+// An explicit --expect-ref is a claim about which commit this run is graded
+// against, and #584 is what happens when that claim is wrong: the overlays came
+// from one commit and the expectations from another, and nothing said so.
+const EXPECT_REF_EXPLICIT = argv.includes('--expect-ref');
 
 /**
  * Comment marker for a stage. Mirrors packages/core/src/stage.ts upstream —
@@ -531,6 +536,66 @@ if (gradeable.length && expectCount === 0) {
   console.error('resets main to that tag. Try:');
   console.error('  git fetch origin main && scripts/grade-run.mjs --expect-ref origin/main');
   process.exit(2);
+}
+
+/**
+ * The overlays and the expectations must come from the SAME commit (#584).
+ *
+ * Before the snapshot existed they routinely did not. run-suite.sh applied
+ * overlays from whatever the e2e-baseline tag held — the gate resets the tree to
+ * that tag before the suite — while this script read expect.json from
+ * origin/main. Editing expect.json took effect immediately; editing overlay/ did
+ * nothing at all. The run still printed `expectations: origin/main @ <sha>` and
+ * still exited 0 on the fixtures that happened to agree, so the split was
+ * invisible from the output.
+ *
+ * run-suite.sh now records the commit it pinned as `snapshot`. When the caller
+ * named --expect-ref explicitly — which is what CI does, passing the same SHA —
+ * a mismatch or a missing snapshot is an ERROR, not a warning: a warning printed
+ * above a green verdict reads as "noted", and this is precisely the class of
+ * defect that survives by looking noted. For a local default, or the deliberate
+ * `--expect-ref worktree` used while iterating on expectations, warn — being
+ * unable to grade at all would be the worse failure there.
+ *
+ * Two deliberate narrowings, so this cannot block a run it has nothing to say
+ * about:
+ *   * nothing gradeable (a manual-only selection, or every fixture skipped for a
+ *     missing prereq) — there is no verdict to get wrong, so warn at most;
+ *   * the expectation source is not a commit — an unresolvable ref already falls
+ *     back to the working tree and announces it, and turning that announced
+ *     fallback into a hard stop would undo a deliberate earlier decision. The
+ *     zero-expectations guard above is what catches the dangerous half of it.
+ */
+const snapshotSha = typeof manifest.snapshot === 'string' && manifest.snapshot
+  ? manifest.snapshot
+  : null;
+// SOURCE.sha, not EXPECT_REF: the ref STRING may be a branch name, a short sha,
+// or `FIXTURES_SHA`, and comparing strings would pass a genuine mismatch and fail
+// a genuine match. Compare the commits the two halves actually resolved to.
+const snapshotMismatch = SOURCE.kind !== 'ref'
+  ? `expectations came from the ${SOURCE.label}, which is not a commit`
+  : !snapshotSha
+    ? 'the run manifest records no `snapshot` — it predates #584, or was not written by run-suite.sh'
+    : snapshotSha !== SOURCE.sha
+      ? `overlays came from ${snapshotSha.slice(0, 7)}, expectations from ${SOURCE.sha.slice(0, 7)}`
+      : null;
+
+if (snapshotMismatch) {
+  const strict = EXPECT_REF_EXPLICIT
+    && EXPECT_REF !== 'worktree'
+    && SOURCE.kind === 'ref'
+    && gradeable.length > 0;
+  const lines = [
+    `${strict ? '✗' : '⚠'} Fixture snapshot and expectation source disagree: ${snapshotMismatch}.`,
+    '  The overlays under review and the expect.json grading them are from different',
+    '  commits, so a FAIL may be a stale fixture and a PASS may be luck (#584).',
+    `  Re-run the suite with --snapshot-ref <sha> and grade with --expect-ref <the same sha>.`,
+  ];
+  for (const l of lines) console.error(l);
+  if (strict) {
+    console.error('  --expect-ref was given explicitly, so this is an error rather than a note.');
+    process.exit(2);
+  }
 }
 
 const results = [];

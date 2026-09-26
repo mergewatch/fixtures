@@ -33,7 +33,7 @@ scripts/
 gh pr close <N> --delete-branch
 ```
 
-`apply-fixture.sh` always resets to `e2e-baseline` before applying an overlay, so fixtures stay reproducible regardless of prior runs.
+`apply-fixture.sh` always resets to `e2e-baseline` before applying an overlay, so fixtures stay reproducible regardless of prior runs. The **baseline code** comes from the tag; the **fixture definition** — `overlay/`, `meta.env`, `expect.json` — comes from a pinned commit of `main`. See [Where a fixture's files come from](#where-a-fixtures-files-come-from-mergewatchai584).
 
 ## Bait sterility (issue #349)
 
@@ -121,6 +121,62 @@ deliberate behaviors there:
 
 Always `--dry-run` first. A full run opens ~98 real PRs and spends real money.
 
+## Where a fixture's files come from (mergewatch.ai#584)
+
+A fixture has two halves and they are resolved from **two different places**.
+Knowing which is which is the difference between a fix that works and a fix that
+silently does nothing.
+
+| | comes from | moves when |
+|---|---|---|
+| `overlay/`, `meta.env`, `expect.json`, `scripts/`, `e2e/impact-map.yml` | a **pinned commit of `main`** — `--snapshot-ref <sha>` in CI, `origin/main` locally | you merge to `main` |
+| the baseline app the branch is cut from — `src/`, `.mergewatch.yml`, `.github/workflows/` | the **`e2e-baseline` tag** | someone re-tags |
+
+**So: editing a fixture takes effect on merge. No re-tag needed.**
+
+`run-suite.sh` resolves one commit, extracts `scripts/`, `fixtures/` and `e2e/`
+from it into a tmpdir outside the repo, and reads everything from there. The run
+manifest records the commit as `snapshot`, and `grade-run.mjs` refuses to grade
+when the expectations it read came from a different commit than the overlays.
+
+### Why this is not the obvious design
+
+The E2E gate runs `reset-env.sh` immediately before the suite, and that does
+`git reset --hard e2e-baseline` **on main**. `git reset --hard` deletes files
+tracked in the old `HEAD` and absent from the target, so afterwards the entire
+working tree — `fixtures/`, `scripts/`, all of it — is the **tag's** content. The
+`scripts/run-suite.sh` the gate then invokes is the tag's copy.
+
+Before #584 that meant a fixture fix merged to `main` was **inert until somebody
+moved the tag by hand**, while `grade-run.mjs` read `expect.json` from
+`origin/main` the whole time. Two halves of one fixture, from two commits.
+Editing `expect.json` worked immediately; editing `overlay/` did nothing at all.
+
+And it was silent. The overlay applied cleanly, the review ran, and the
+assertion failed *exactly as it had before the fix* — so the natural reading was
+"my fix was wrong", not "my fix never ran". That cost a re-diagnosis twice
+(fixtures#2130, fixtures#3721).
+
+The snapshot lives outside the repo for the same reason: nothing inside it
+survives `git checkout e2e-baseline` + `git clean -fd`.
+
+### When you still have to re-tag
+
+Two cases, and a preflight tells you about both before anything is pushed:
+
+* **`.github/workflows/` drift** — every push is rejected (next section).
+* **baseline-app drift** — `src/` or `.mergewatch.yml` differ between the tag and
+  the pinned commit. Overlays are whole-file copies, so anything an overlay does
+  not itself replace is inherited from the tag; if `main` has moved it, the run
+  reviews code nobody wrote expectations against. There is **no override** for
+  this one — it blocks the gate, and therefore deploys, until the tag moves.
+  Grading the wrong baseline and believing the answer is the costlier outcome.
+
+`README.md` is deliberately outside the watched set even though `06-docs-only`
+overlays it: that fixture is docs-only and always skipped, and README edits are
+the most common change on `main`. A preflight that blocks on those gets switched
+off, and then it protects nothing.
+
 ## Keeping `e2e-baseline` in step (mergewatch.ai#509)
 
 Fixture branches are cut from the **`e2e-baseline` tag**, so every push carries
@@ -147,15 +203,16 @@ git tag -f e2e-baseline main && git push -f origin e2e-baseline
 ```
 
 The `src/` check is not optional — it is the app under review, and moving it
-means past runs stop being comparable. Everything else the tag picks up
-(`scripts/`, `meta.env`, docs) is harness and is meant to move.
+means past runs stop being comparable. `run-suite.sh` enforces it as a preflight
+of its own; see [the section above](#when-you-still-have-to-re-tag).
 
 `ALLOW_WORKFLOW_DRIFT=1` skips the preflight. That is legitimate for a local
 run — a `gh auth` token usually *does* carry `workflow` scope — and is not a
 way to run the gate.
 
-> Advancing the tag also activates any `meta.env` added since it last moved.
-> Flags on fixtures that predate the tag are inert, including in CI.
+> Since #584 the tag no longer gates fixture content. A `meta.env` flag, a new
+> overlay, or a whole new fixture directory merged to `main` is live on the next
+> run without a re-tag. The tag supplies only the baseline app.
 
 ## One run at a time (mergewatch.ai#506)
 
@@ -228,7 +285,16 @@ the qualitative outcomes assertions cannot express ("findings quality unchanged
 or better"). The two layers are complements, not alternatives.
 
 Exit codes: `0` clean, `1` a regression or a PR that could not be fetched
-(unverified is not the same as fine), `2` no manifest.
+(unverified is not the same as fine), `2` no manifest, a source with zero
+expectations, or a snapshot/expectation mismatch.
+
+Expectations come from `origin/main` by default; `--expect-ref <sha>` pins them,
+and `--expect-ref worktree` reads the working tree while you iterate. When
+`--expect-ref` is given explicitly, the ref it resolves to must equal the
+manifest's `snapshot` — the commit `run-suite.sh` took the overlays from — or
+grading **exits 2** rather than warning. A mismatch means one half of every
+fixture is stale, so a `FAIL` might be a stale fixture and a `PASS` might be
+luck (mergewatch.ai#584). A local run without `--expect-ref` only warns.
 
 ### Identifying the App
 
