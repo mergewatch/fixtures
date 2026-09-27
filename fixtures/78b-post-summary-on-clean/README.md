@@ -8,7 +8,7 @@ That second one is worth knowing before you enable this: `postSummaryOnClean: fa
 
 ## Why it can still fail (`_determinism: model`)
 
-Silence is decided by `stayingSilent` (#350): no findings, `postSummaryOnClean: false`, and no prior comment. That is a statement about **model output**, not config. `minSeverity: critical` (mergewatch.ai#660) drops warnings and info before grounding, so a stray test-coverage warning (the #3764 failure) no longer breaks it. But org agents still run: the seeded `no-todo` org agent bypasses `minSeverity`, and so does any built-in critical, including a refuted one (the verifier demotes it to unverified; it is not dropped). Either posts the summary and flips the review off APPROVED. Cassettes (#491/#492) are what would remove this variance.
+Silence is decided by `shouldStaySilent` (#350, mergewatch.ai#664): no findings, `postSummaryOnClean: false`, no prior comment, and no failed gating custom agent. A blocking org agent or repo agent that fails to answer always posts, because the author must be told why the check failed; an advisory agent's failure does not. That is a statement about **model output**, not config. `minSeverity: critical` (mergewatch.ai#660) drops warnings and info before grounding, so a stray test-coverage warning (the #3764 failure) no longer breaks it. But org agents still run: the seeded `no-todo` org agent bypasses `minSeverity`, and so does any built-in critical, including a refuted one (the verifier demotes it to unverified; it is not dropped). Either posts the summary and flips the review off APPROVED. Cassettes (#491/#492) are what would remove this variance.
 
 ## Apply
 
