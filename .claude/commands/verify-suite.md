@@ -23,8 +23,18 @@ counts, reactions — with no model involved. Take its verdicts as given:
   regressions with the assertion text the grader printed.
 - **UNGRADED** — no `expect.json`. These are yours to grade against the prose
   README, per the steps below.
-- **SKIP / ERROR** — no PR, missing prerequisite, or the PR could not be
-  fetched. Never grade these as product failures.
+- **SKIP** — no PR, or a missing prerequisite. Never grade these as product
+  failures.
+- **ERROR** — no verdict exists, for one of two reasons (mergewatch.ai#659):
+  - *Provider error*: the model provider failed and the review never ran (the
+    first note reads `provider error on <sha> …`). Report the message and
+    whether the other stage corroborated it. This is **UNVERIFIED, never a
+    pass** — the change was not reviewed.
+  - *Harness*: the PR could not be fetched, or `expect.json` is invalid. A
+    tooling problem, not a product one.
+- A **FAIL** whose note reads `review crashed on <sha>` is a regression: the
+  review threw on something other than a known provider error. Report it like
+  any FAIL.
 
 Your judgement is for what assertions cannot express — "findings quality
 unchanged or better", whether an inline anchor landed on a sensible line,
