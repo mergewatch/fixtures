@@ -1,5 +1,7 @@
 {
   "_source": "README Expected outcomes — E2E-07 (includePatterns opts docs/** back into review)",
+  "_determinism": "model",
+  "_variance": "The include-pattern decision is mechanical, but the asserted APPROVE needs a score of at least 4, which a model-raised warning or critical can lower.",
   "comment": "present",
   "score": { "min": 4 },
   "check": "success",

@@ -1,5 +1,6 @@
 {
-  "_source": "README Expected outcomes — E2E-14, AUTOMATED HALF ONLY. The contract (no reply in a thread not rooted in a MergeWatch comment) needs a human to open that thread after the review lands, and the skip reason is a log line. Neither is in final PR state. Asserted here: the PR reviews normally, so a run where this fixture never got reviewed is not silently read as 'MergeWatch correctly stayed quiet'.",
+  "_source": "README Expected outcomes — E2E-14, AUTOMATED HALF ONLY. The contract (no reply in a thread not rooted in a MergeWatch comment) needs a human to open that thread after the review lands, and the skip reason is a log line. Neither is in final PR state. Asserted here: the PR reviews normally, so a run where this fixture never got reviewed is not silently read as 'MergeWatch correctly stayed quiet'. Labelled `mechanical` (mergewatch.ai#660): any completed review posts the summary comment (postSummaryOnClean defaults to true; `stayingSilent`, review-agent.ts:1051) and renders a score badge (`formatReviewComment`, comment-formatter.ts:760), so a full-range score and a present comment hold for every model output.",
+  "_determinism": "mechanical",
   "comment": "present",
   "score": {
     "min": 1,

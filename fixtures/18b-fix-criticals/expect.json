@@ -1,5 +1,7 @@
 {
   "_source": "README Expected outcomes — E2E-18b. This is the end state of the shared 18a/18b PR, so it carries the pair's real assertion. `min: 3` is the delta-aware tier rule, not a judgement about the fix: resolvedCriticals > newCriticals must keep the verdict out of red even if the model flags 1-2 minor concerns on the fix itself. `Previously reported` proves the prior review's criticals were carried and resolved rather than forgotten. reviewState is NOT asserted — APPROVED (green) and COMMENTED (yellow) are both documented-correct outcomes, exactly as in E2E-25.",
+  "_determinism": "model",
+  "_variance": "Needs the re-review on the fix commit to carry the prior findings forward and score at least 3; both depend on what the model finds on that commit.",
   "comment": "present",
   "score": {
     "min": 3

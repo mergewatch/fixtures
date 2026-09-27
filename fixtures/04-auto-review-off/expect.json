@@ -1,5 +1,6 @@
 {
-  "_source": "README Expected outcomes — E2E-04 (silent skip: no check run at all)",
+  "_source": "README Expected outcomes — E2E-04 (silent skip: no check run at all). These assertions cannot tell skipped from never ran: a dead webhook or a stage that is down produces the same silence (#659's follow-ups).",
+  "_determinism": "skip",
   "comment": "absent",
   "check": "none",
   "reviewState": "none",

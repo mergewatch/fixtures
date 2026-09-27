@@ -1,5 +1,7 @@
 {
   "_source": "README Expected outcomes — E2E-28a (#132: one comment, one review, empty body)",
+  "_determinism": "model",
+  "_variance": "Single-comment mode is mechanical, but the 5/5, APPROVE and success need the model to find nothing actionable.",
   "comment": "present",
   "check": "success",
   "reviewState": "APPROVED",

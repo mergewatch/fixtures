@@ -1,5 +1,6 @@
 {
-  "_source": "README Expected outcomes — E2E-24, AUTOMATED HALF ONLY. The contract is that a triage comment from a NON-author is ignored, which needs a second account to comment and a re-review; every stated outcome is a log line or a non-event ('no [triage-suppressed] line', 'mapping LLM call not made'). Asserted here: the first review lands, so the warning the manual half depends on actually exists.",
+  "_source": "README Expected outcomes — E2E-24, AUTOMATED HALF ONLY. The contract is that a triage comment from a NON-author is ignored, which needs a second account to comment and a re-review; every stated outcome is a log line or a non-event ('no [triage-suppressed] line', 'mapping LLM call not made'). Asserted here: the first review lands, so the warning the manual half depends on actually exists. Labelled `mechanical` (mergewatch.ai#660): any completed review posts the summary comment (postSummaryOnClean defaults to true; `stayingSilent`, review-agent.ts:1051) and renders a score badge (`formatReviewComment`, comment-formatter.ts:760), so a full-range score and a present comment hold for every model output.",
+  "_determinism": "mechanical",
   "comment": "present",
   "score": {
     "min": 1,

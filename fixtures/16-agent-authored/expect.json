@@ -1,5 +1,6 @@
 {
-  "_source": "README Expected outcomes — E2E-16. Every stated outcome is internal: the classification log line and the persisted `source: 'agent', agentKind: 'claude'` record. The README itself notes the comment renders with 'no visible difference'. What IS mechanical is that a `claude/*` branch reviews normally — the agent-mode prompt suffix must not break or skip the review. Stored-record and prompt-tone checks stay manual.",
+  "_source": "README Expected outcomes — E2E-16. Every stated outcome is internal: the classification log line and the persisted `source: 'agent', agentKind: 'claude'` record. The README itself notes the comment renders with 'no visible difference'. What IS mechanical is that a `claude/*` branch reviews normally — the agent-mode prompt suffix must not break or skip the review. Stored-record and prompt-tone checks stay manual. Labelled `mechanical` (mergewatch.ai#660): any completed review posts the summary comment (postSummaryOnClean defaults to true; `stayingSilent`, review-agent.ts:1051) and renders a score badge (`formatReviewComment`, comment-formatter.ts:760), so a full-range score and a present comment hold for every model output.",
+  "_determinism": "mechanical",
   "comment": "present",
   "score": {
     "min": 1,
