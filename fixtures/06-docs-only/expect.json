@@ -1,5 +1,6 @@
 {
   "_source": "README Expected outcomes — E2E-06 (smart-skip path, check is visible)",
+  "_determinism": "skip",
   "comment": "absent",
   "check": "neutral",
   "checkTitleMatches": "skip",

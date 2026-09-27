@@ -1,5 +1,6 @@
 {
   "_source": "README Expected outcomes — E2E-10",
+  "_determinism": "skip",
   "comment": "absent",
   "check": "neutral",
   "checkTitleMatches": "skip",
