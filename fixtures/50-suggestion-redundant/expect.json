@@ -1,5 +1,6 @@
 {
-  "_source": "README Expected outcomes — E2E-50, NARROWED. FP-I L2 is a deterministic short-circuit, but it fires BEFORE render — a correctly-dropped 'log the error' finding and a never-emitted one are indistinguishable in the comment, and the outcome that proves it ('zero LLM calls for that finding') is a log line. The one-sided `critical: 0` form used by E2E-21/22 does not transfer: the redundant finding here is warning-tier, and src/log-already.ts can legitimately draw other warnings.",
+  "_source": "README Expected outcomes — E2E-50, NARROWED. FP-I L2 is a deterministic short-circuit, but it fires BEFORE render — a correctly-dropped 'log the error' finding and a never-emitted one are indistinguishable in the comment, and the outcome that proves it ('zero LLM calls for that finding') is a log line. The one-sided `critical: 0` form used by E2E-21/22 does not transfer: the redundant finding here is warning-tier, and src/log-already.ts can legitimately draw other warnings. Labelled `mechanical` (mergewatch.ai#660): any completed review posts the summary comment (postSummaryOnClean defaults to true; `stayingSilent`, review-agent.ts:1051) and renders a score badge (`formatReviewComment`, comment-formatter.ts:760), so a full-range score and a present comment hold for every model output.",
+  "_determinism": "mechanical",
   "comment": "present",
   "score": {
     "min": 1,

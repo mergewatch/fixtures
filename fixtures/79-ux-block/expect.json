@@ -1,5 +1,7 @@
 {
   "_source": "README Expected outcomes — E2E-79. commentHeader is attacker-adjacent text rendered into every comment the installation posts, and the overlay seeds it with a live XSS payload. Asserted as the PRESENCE of the entity-encoded form, not the absence of the raw one: the raw payload legitimately appears elsewhere in the body because the security agent flags it and quotes the offending config line as evidence (#469). A whole-body mustNotContain therefore fails whenever the reviewer does its job on bait that is, by design, a real vulnerability — it was testing reviewer silence, not escaping. `&lt;img` can only come from the escaped header; the finding quotes the raw tag. The tone/showWorkDone/checklist knobs need a cross-run comparison of the finding set and stay manual.",
+  "_determinism": "model",
+  "_variance": "The escaped &lt;img src appears only when a finding or diagram quotes the payload; the escaping is mechanical, its presence is not.",
   "comment": "present",
   "mustContain": [
     "&lt;img src"

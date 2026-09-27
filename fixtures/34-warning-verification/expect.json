@@ -1,5 +1,6 @@
 {
-  "_source": "README Expected outcomes — E2E-34, NARROWED. The `verification: 'verified' | 'unverified'` tag lands on the persisted review record, not in the comment, and the fail-safe branches (missing file skips the call, LLM error keeps + tags) need an induced failure. Asserted here: extending W2 to warnings must not break or stall the review — the regression this would most plausibly cause is a timeout from one extra LLM call per warning.",
+  "_source": "README Expected outcomes — E2E-34, NARROWED. The `verification: 'verified' | 'unverified'` tag lands on the persisted review record, not in the comment, and the fail-safe branches (missing file skips the call, LLM error keeps + tags) need an induced failure. Asserted here: extending W2 to warnings must not break or stall the review — the regression this would most plausibly cause is a timeout from one extra LLM call per warning. Labelled `mechanical` (mergewatch.ai#660): any completed review posts the summary comment (postSummaryOnClean defaults to true; `stayingSilent`, review-agent.ts:1051) and renders a score badge (`formatReviewComment`, comment-formatter.ts:760), so a full-range score and a present comment hold for every model output.",
+  "_determinism": "mechanical",
   "comment": "present",
   "score": {
     "min": 1,

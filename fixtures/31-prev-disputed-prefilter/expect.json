@@ -1,5 +1,6 @@
 {
-  "_source": "README Expected outcomes — E2E-31, AUTOMATED HALF ONLY. FP-B is a prefilter on the re-review's previousFindings payload — it needs the manual rebuttal plus a no-op push, and its outcomes are a smaller log payload and the ABSENCE of a suppression line. Asserted here: the first review produces the data-access finding the manual half rebuts.",
+  "_source": "README Expected outcomes — E2E-31, AUTOMATED HALF ONLY. FP-B is a prefilter on the re-review's previousFindings payload — it needs the manual rebuttal plus a no-op push, and its outcomes are a smaller log payload and the ABSENCE of a suppression line. Asserted here: the first review produces the data-access finding the manual half rebuts. Labelled `mechanical` (mergewatch.ai#660): any completed review posts the summary comment (postSummaryOnClean defaults to true; `stayingSilent`, review-agent.ts:1051) and renders a score badge (`formatReviewComment`, comment-formatter.ts:760), so a full-range score and a present comment hold for every model output.",
+  "_determinism": "mechanical",
   "comment": "present",
   "score": {
     "min": 1,

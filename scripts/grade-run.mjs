@@ -668,6 +668,9 @@ if (snapshotMismatch) {
 }
 
 const results = [];
+// mergewatch.ai#660 — each graded fixture's `_determinism` and `_variance`, kept
+// beside the results rather than in them so `--json` output is unchanged.
+const labels = new Map();
 for (const entry of manifest.fixtures ?? []) {
   const base = { fixture: entry.fixture, pr: entry.pr, noVerdict: null };
 
@@ -694,6 +697,8 @@ for (const entry of manifest.fixtures ?? []) {
     results.push({ ...base, verdict: 'ERROR', notes: [`expect.json is not valid JSON: ${err.message}`] });
     continue;
   }
+
+  labels.set(entry.fixture, { determinism: expect._determinism, variance: expect._variance });
 
   let pr;
   try {
@@ -861,6 +866,13 @@ const SELECTION_NOTE = selectionNote(manifest.selection);
 // #659 — computed once, for both text and --json output.
 const GATE = formatGate(results, { stage: STAGE ?? 'prod' });
 
+/** A FAIL on a `model` fixture that is not a crash (mergewatch.ai#660). */
+function isModelDependentFail(r) {
+  return r.verdict === 'FAIL'
+    && labels.get(r.fixture)?.determinism === 'model'
+    && r.noVerdict?.kind !== 'review-crashed';
+}
+
 // --- Report -----------------------------------------------------------------
 if (AS_JSON) {
   console.log(JSON.stringify({
@@ -889,6 +901,12 @@ if (AS_JSON) {
     const pr = r.pr == null ? '' : ` #${r.pr}`;
     console.log(`${ICON[r.verdict]} ${r.verdict.padEnd(8)} ${r.fixture}${pr}`);
     for (const n of r.notes ?? []) console.log(`             ${n}`);
+    // #660 — a FAIL on a fixture whose outcome depends on what the model found
+    // says so, right where the reader is deciding whether it is a regression. A
+    // crash is never model variance (#659), so it is excluded.
+    if (isModelDependentFail(r)) {
+      console.log(`             model-dependent: ${labels.get(r.fixture).variance}`);
+    }
     // #560 — attribution, not exculpation: the failure stands, but a reader
     // deciding whether to revert should know the run cannot tie it to the diff.
     if (r.verdict === 'FAIL' && SELECTION_NOTE) {
@@ -899,6 +917,13 @@ if (AS_JSON) {
   console.log('');
   console.log(`${tally('PASS')} passed · ${tally('FAIL')} failed · ${tally('UNGRADED')} ungraded · `
     + `${tally('SKIP')} skipped · ${tally('ERROR')} errored`);
+  // Its own line, never folded into the tally: release-gate.yml greps
+  // `passed ·|NOT VERIFIED` from here into the release notes.
+  const modelDependent = results.filter(isModelDependentFail).length;
+  if (modelDependent) {
+    console.log(`${modelDependent} of the ${tally('FAIL')} failures are model-dependent — each is marked `
+      + 'model-dependent: above; cassettes (#491/#492) remove that variance.');
+  }
   if (tally('UNGRADED')) {
     console.log('Ungraded fixtures have no expect.json — grade them with /verify-suite.');
   }

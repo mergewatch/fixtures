@@ -1,5 +1,6 @@
 {
-  "_source": "README Expected outcomes — E2E-76b (autoReview:false + reviewOnMention:false = zero trace, the silent-skip path)",
+  "_source": "README Expected outcomes — E2E-76b (autoReview:false + reviewOnMention:false = zero trace, the silent-skip path). These assertions cannot tell skipped from never ran: a dead webhook or a stage that is down produces the same silence (#659's follow-ups).",
+  "_determinism": "skip",
   "comment": "absent",
   "check": "none",
   "reviewState": "none",

@@ -105,3 +105,103 @@ test('every expect.json carries a _source explaining what it asserts', () => {
   });
   assert.deepEqual(missing, []);
 });
+
+// ─── mergewatch.ai#660 — every expectation says how deterministic it is ───────
+//
+// `correctness` means a product contract gated at release, not that the outcome
+// is deterministic. ≥28 of 54 fixtures depend on what the model happens to
+// find, and a red gate on one of them read exactly like a regression until
+// someone opened check runs to find out. The label makes that visible:
+//
+//   skip        decided before any LLM call (no comment, no review, no check /
+//               a neutral skip check)
+//   mechanical  holds for ANY output of a completed review; `_source` cites the
+//               symbol that guarantees it
+//   model       holds for some model outputs only; `_variance` says which
+//
+// The rules below force `model` wherever an assertion reads model output, so a
+// label cannot understate the variance. `mechanical` is the only label an
+// author has to argue for.
+
+const LABELS = new Set(['skip', 'mechanical', 'model']);
+
+/** No comment, no review, and no check (or a neutral skip check). */
+export function skipShaped(e) {
+  if (e.comment !== 'absent' || e.reviewState !== 'none') return false;
+  if (e.check === 'none') return true;
+  return e.check === 'neutral' && /skip/i.test(e.checkTitleMatches ?? '');
+}
+
+/** Does any assertion read something only the model decides? */
+export function readsModelOutput(e) {
+  const fullRange = e.score && typeof e.score === 'object'
+    && e.score.min === 1 && e.score.max === 5 && e.score.is == null;
+  return e.comment === 'absent'
+    || e.findings != null
+    || e.inlineComments != null
+    || (e.score != null && !fullRange)
+    || e.check === 'success' || e.check === 'failure'
+    || e.reviewState === 'APPROVED' || e.reviewState === 'CHANGES_REQUESTED'
+    || e.findingLines != null;
+}
+
+export const OVERLAY_78B = [/^minSeverity:\s*critical\s*$/m, /^postSummaryOnClean:\s*false\s*$/m];
+
+/** Every labelling violation across `fixtures` ([{ name, expect, overlayYaml }]). */
+export function labelViolations(fixtures) {
+  const out = [];
+  for (const { name, expect: e, overlayYaml } of fixtures) {
+    // Independent of the label, so a missing label cannot hide it.
+    if (name === '78b-post-summary-on-clean') {
+      for (const re of OVERLAY_78B) {
+        if (!re.test(overlayYaml ?? '')) out.push(`${name}: overlay .mergewatch.yml must match ${re}`);
+      }
+    }
+    const label = e._determinism;
+    if (!LABELS.has(label)) {
+      out.push(`${name}: _determinism is ${JSON.stringify(label)}, expected skip | mechanical | model`);
+      continue;
+    }
+    if ((label === 'skip') !== skipShaped(e)) {
+      out.push(`${name}: labelled ${label} but ${skipShaped(e) ? 'is' : 'is not'} skip-shaped`);
+    }
+    if (!skipShaped(e) && readsModelOutput(e) && label !== 'model') {
+      out.push(`${name}: asserts model output but is labelled ${label}`);
+    }
+    if (label === 'model' && (typeof e._variance !== 'string' || e._variance.trim().length < 20)) {
+      out.push(`${name}: model fixture needs a _variance of 20+ characters`);
+    }
+  }
+  return out;
+}
+
+const realFixtures = () => fixtureDirs.map((name) => {
+  const yml = join(FIXTURES, name, 'overlay', '.mergewatch.yml');
+  return {
+    name,
+    expect: JSON.parse(readFileSync(join(FIXTURES, name, 'expect.json'), 'utf8')),
+    overlayYaml: existsSync(yml) ? readFileSync(yml, 'utf8') : null,
+  };
+});
+
+test('#660 — every expect.json is labelled, and the label matches what it asserts', () => {
+  const v = labelViolations(realFixtures());
+  assert.deepEqual(v, [], `\n${v.join('\n')}\n`);
+});
+
+test('#660 — the rules catch each mislabel (mutations of the real set)', () => {
+  const base = realFixtures();
+  const mutate = (name, fn) => base.map((f) => (f.name === name ? fn(structuredClone(f)) : f));
+  const cases = {
+    '78b labelled skip': mutate('78b-post-summary-on-clean', (f) => { f.expect._determinism = 'skip'; return f; }),
+    '04 labelled mechanical': mutate('04-auto-review-off', (f) => { f.expect._determinism = 'mechanical'; return f; }),
+    '01 labelled mechanical': mutate('01-clean-pr', (f) => { f.expect._determinism = 'mechanical'; return f; }),
+    '78b without _variance': mutate('78b-post-summary-on-clean', (f) => { delete f.expect._variance; return f; }),
+    '78b without minSeverity': mutate('78b-post-summary-on-clean', (f) => {
+      f.overlayYaml = f.overlayYaml.replace(/^minSeverity:.*$/m, ''); return f;
+    }),
+  };
+  for (const [what, set] of Object.entries(cases)) {
+    assert.ok(labelViolations(set).length > 0, `${what} was not caught`);
+  }
+});

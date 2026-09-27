@@ -35,9 +35,9 @@ Asserted, because mechanical: the review completed and rendered a verdict, and
 neither artifact's name appears in the comment.
 
 **Not** asserted: whether the off-by-one surfaces, or at what severity. That is
-model judgement, and the `correctness` tag means a deterministic contract — the
-same reason E2E-02's info-count assertion was removed after two identical runs
-disagreed. If the reviewer misses the bug the suite stays green here; that is a
+model judgement, and the `correctness` tag means a product contract gated at
+release — the same reason E2E-02's info-count assertion was removed after two
+identical runs disagreed. If the reviewer misses the bug the suite stays green here; that is a
 different fixture's job.
 
 The log assertions above are also not machine-checkable — `grade-run.mjs` reads
