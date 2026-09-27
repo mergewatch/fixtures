@@ -47,6 +47,7 @@
  */
 import { execFileSync } from 'node:child_process';
 import { readFileSync, existsSync, readdirSync, writeFileSync } from 'node:fs';
+import { pickRun, classify, corroboration, clip, formatGate, escapeAnnotation } from './no-verdict.mjs';
 
 // --- CLI --------------------------------------------------------------------
 const argv = process.argv.slice(2);
@@ -100,7 +101,7 @@ function gh(args) {
 
 function fetchPR(number) {
   const raw = gh(['pr', 'view', String(number), '--json',
-    'comments,reviews,statusCheckRollup,reactionGroups,state,headRefOid']);
+    'comments,reviews,statusCheckRollup,reactionGroups,state,headRefOid,commits']);
   return JSON.parse(raw);
 }
 
@@ -113,14 +114,23 @@ function fetchPR(number) {
  * string and could never pass: E2E-06, -09 and -10 asserted a title no code
  * path could supply. The REST check-runs endpoint has the data.
  */
+const checkRunCache = new Map();
 function fetchCheckOutputs(repo, sha) {
   if (!sha) return [];
+  const key = `${repo}@${sha}`;
+  if (checkRunCache.has(key)) return checkRunCache.get(key);
+  let runs = [];
   try {
-    return JSON.parse(gh(['api', `repos/${repo}/commits/${sha}/check-runs`, '--paginate']))
+    runs = JSON.parse(gh(['api', `repos/${repo}/commits/${sha}/check-runs`, '--paginate']))
       .check_runs ?? [];
-  } catch {
-    return [];
+  } catch (err) {
+    // Still graded, but visibly: without the check runs, a review that never
+    // produced a verdict cannot be told from one that disagreed (#659).
+    console.error(`note: could not read check runs for ${sha.slice(0, 7)}: ${String(err.message).split('\n')[0]}`);
+    runs = [];
   }
+  checkRunCache.set(key, runs);
+  return runs;
 }
 
 function fetchInlineComments(repo, number) {
@@ -275,10 +285,9 @@ function findCheck(pr, stage, checkRuns = []) {
   const runs = (pr.statusCheckRollup ?? []).filter((c) => c.name === name);
   const base = runs.length ? runs[runs.length - 1] : null;
   if (!base) return null;
-  // Graft the output the rollup omits. Matched by name and taken last-wins for
-  // the same reason as the rollup: a re-review replaces the check.
-  const detailed = checkRuns.filter((c) => c.name === name);
-  const out = detailed.length ? detailed[detailed.length - 1].output ?? {} : {};
+  // Graft the output the rollup omits: the newest run by id (#659). List
+  // position is not an order the REST endpoint promises.
+  const out = pickRun(checkRuns, name)?.output ?? {};
   return { ...base, title: out.title ?? null, summary: out.summary ?? null };
 }
 
@@ -503,6 +512,66 @@ function observe(pr, repo, prNumber, stage) {
   };
 }
 
+/**
+ * #659 — did this stage's review end without a verdict, on any commit of the PR?
+ *
+ * Every commit is read, not just the head: shared-PR fixtures (18a is graded on
+ * 18b's head, run-suite.sh) can have the graded review fail on an earlier
+ * commit while the head's succeeds. Precedence across commits: a crash anywhere
+ * wins (FAIL), else a provider error (ERROR), else the PR is graded as normal.
+ */
+function detectNoVerdict(pr, repo, stage) {
+  const shas = (pr.commits ?? []).map((c) => c.oid).filter(Boolean);
+  if (!shas.length && pr.headRefOid) shas.push(pr.headRefOid);
+  const otherStage = !stage || stage === 'prod' ? 'dev' : 'prod';
+  const hits = [];
+  for (const sha of shas) {
+    const runs = fetchCheckOutputs(repo, sha);
+    const c = classify(pickRun(runs, checkNameFor(stage)));
+    if (c) hits.push({ ...c, sha, corroborated: corroboration(pickRun(runs, checkNameFor(otherStage))) });
+  }
+  const winning = hits.some((h) => h.kind === 'review-crashed') ? 'review-crashed'
+    : hits.some((h) => h.kind === 'provider-transient') ? 'provider-transient' : null;
+  if (!winning) return null;
+  const ofKind = hits.filter((h) => h.kind === winning);
+  const head = ofKind.find((h) => h.sha === pr.headRefOid);
+  const named = head ?? ofKind[ofKind.length - 1];
+  return {
+    kind: named.kind,
+    message: clip(named.message),
+    sha: named.sha,
+    commit: named.sha === pr.headRefOid ? 'head' : 'earlier',
+    corroborated: named.corroborated,
+  };
+}
+
+/** The note that explains a no-verdict result; first in its notes. */
+function noVerdictNote(nv, stage) {
+  const sha7 = nv.sha.slice(0, 7);
+  if (nv.kind === 'review-crashed') return `review crashed on ${sha7}: ${JSON.stringify(nv.message)}`;
+  const otherStage = !stage || stage === 'prod' ? 'dev' : 'prod';
+  const where = nv.commit === 'head' ? 'head' : 'earlier commit on shared PR';
+  return `provider error on ${sha7} (${where}): ${JSON.stringify(nv.message)} · ${otherStage} corroborated: ${nv.corroborated}`;
+}
+
+/**
+ * Grade one stage: a no-verdict result overrides whatever evaluate() says, and
+ * evaluate()'s failures follow it, marked stale, because a missing comment is a
+ * consequence of the error rather than a second finding.
+ */
+function gradeStage(expect, pr, repo, prNumber, stage) {
+  const obs = observe(pr, repo, prNumber, stage);
+  const fails = evaluate(expect, obs);
+  const nv = detectNoVerdict(pr, repo, stage);
+  if (!nv) return { verdict: fails.length ? 'FAIL' : 'PASS', notes: fails, obs, noVerdict: null };
+  return {
+    verdict: nv.kind === 'review-crashed' ? 'FAIL' : 'ERROR',
+    notes: [noVerdictNote(nv, stage), ...fails.map((f) => `also (may be stale): ${f}`)],
+    obs,
+    noVerdict: nv,
+  };
+}
+
 // --- Main -------------------------------------------------------------------
 if (!existsSync(MANIFEST)) {
   console.error(`No manifest at ${MANIFEST}. Run scripts/run-suite.sh first.`);
@@ -600,7 +669,7 @@ if (snapshotMismatch) {
 
 const results = [];
 for (const entry of manifest.fixtures ?? []) {
-  const base = { fixture: entry.fixture, pr: entry.pr };
+  const base = { fixture: entry.fixture, pr: entry.pr, noVerdict: null };
 
   if (entry.applied === 'skipped-missing-prereq') {
     results.push({ ...base, verdict: 'SKIP', notes: ['prerequisite missing — not a product failure'] });
@@ -635,33 +704,39 @@ for (const entry of manifest.fixtures ?? []) {
   }
 
   if (COMPARE) {
-    const prodFails = evaluate(expect, observe(pr, repo, entry.pr, 'prod'));
-    const devObs = observe(pr, repo, entry.pr, 'dev');
-    const devFails = devObs.comment ? evaluate(expect, devObs) : ['no dev review comment found'];
-    const prodScore = observe(pr, repo, entry.pr, 'prod').score;
+    const prod = gradeStage(expect, pr, repo, entry.pr, 'prod');
+    const dev = gradeStage(expect, pr, repo, entry.pr, 'dev');
+    // A dev review that never produced a verdict explains its own missing
+    // comment; only a dev review that simply never appeared gets this note.
+    if (!dev.noVerdict && !dev.obs.comment) {
+      dev.notes = ['no dev review comment found'];
+      dev.verdict = 'FAIL';
+    }
+    const prodScore = prod.obs.score;
+    const verdicts = [prod.verdict, dev.verdict];
     results.push({
       ...base,
-      verdict: prodFails.length || devFails.length ? 'FAIL' : 'PASS',
+      verdict: verdicts.includes('FAIL') ? 'FAIL' : verdicts.includes('ERROR') ? 'ERROR' : 'PASS',
       compare: {
-        prod: { score: prodScore, fails: prodFails },
-        dev: { score: devObs.score, fails: devFails },
-        diverged: prodScore !== devObs.score,
+        prod: { score: prodScore, fails: prod.notes, noVerdict: prod.noVerdict },
+        dev: { score: dev.obs.score, fails: dev.notes, noVerdict: dev.noVerdict },
+        diverged: prodScore !== dev.obs.score,
       },
       notes: [
-        ...prodFails.map((f) => `prod: ${f}`),
-        ...devFails.map((f) => `dev: ${f}`),
-        ...(prodScore !== devObs.score ? [`DIVERGENCE: prod ${prodScore}/5 vs dev ${devObs.score}/5`] : []),
+        ...prod.notes.map((f) => `prod: ${f}`),
+        ...dev.notes.map((f) => `dev: ${f}`),
+        ...(prodScore !== dev.obs.score ? [`DIVERGENCE: prod ${prodScore}/5 vs dev ${dev.obs.score}/5`] : []),
       ],
+      noVerdict: dev.noVerdict ?? prod.noVerdict,
       // Compare mode reads both stages; the dev review is the one this run
       // caused, so it is the one whose cost belongs to the run.
-      cost: devObs.cost,
+      cost: dev.obs.cost,
     });
     continue;
   }
 
-  const obs = observe(pr, repo, entry.pr, STAGE);
-  const fails = evaluate(expect, obs);
-  results.push({ ...base, verdict: fails.length ? 'FAIL' : 'PASS', notes: fails, cost: obs.cost });
+  const g = gradeStage(expect, pr, repo, entry.pr, STAGE);
+  results.push({ ...base, verdict: g.verdict, notes: g.notes, noVerdict: g.noVerdict, cost: g.obs.cost });
 }
 
 /**
@@ -718,9 +793,15 @@ function unverifiedCorrectness(ranFixtures) {
 function costSummary(rs) {
   const measured = [];
   const unknown = [];
+  const noVerdict = [];
   for (const r of rs) {
     // Fixtures that never ran are not "unmeasured cost" — they had none.
     if (r.verdict === 'SKIP') continue;
+    // #659 — a review that never produced a verdict is neither a measured cost
+    // nor a parser miss. Folding it into `unknown` made a provider outage read
+    // as a PARSER failure; totalling a crash's partial cost block would count a
+    // review that did not happen.
+    if (r.noVerdict) { noVerdict.push(r); continue; }
     if (r.cost?.costUsd != null) measured.push(r);
     else unknown.push(r);
   }
@@ -731,6 +812,7 @@ function costSummary(rs) {
     totalUsd,
     measuredCount: measured.length,
     unknown: unknown.map((r) => r.fixture),
+    noVerdict: noVerdict.map((r) => r.fixture),
     inputTokens: inTok,
     outputTokens: outTok,
     perFixture: measured
@@ -776,6 +858,9 @@ function selectionNote(selection) {
 
 const SELECTION_NOTE = selectionNote(manifest.selection);
 
+// #659 — computed once, for both text and --json output.
+const GATE = formatGate(results, { stage: STAGE ?? 'prod' });
+
 // --- Report -----------------------------------------------------------------
 if (AS_JSON) {
   console.log(JSON.stringify({
@@ -785,6 +870,7 @@ if (AS_JSON) {
     selection: manifest.selection ?? 'unknown',
     selectionNote: SELECTION_NOTE,
     cost: COST,
+    gate: { state: GATE.state, headline: GATE.headline },
     results,
   }, null, 2));
 } else {
@@ -871,6 +957,21 @@ if (AS_JSON) {
       }
     }
   }
+  if (COST.noVerdict.length > 0) {
+    console.log(`  ${COST.noVerdict.length} fixture(s) have no verdict (provider error / crashed) — `
+      + `cost not measured: ${COST.noVerdict.join(', ')}`);
+  }
+
+  // #659 — the GATE block is the LAST thing printed, after cost, so the job
+  // summary's `tail -40` always carries the headline and every cause.
+  console.log('');
+  for (const l of GATE.lines) console.log(l);
+}
+
+// One annotation per red run, in both modes, so the Actions UI names the cause
+// without anyone opening the log.
+if (GATE.state === 'red') {
+  console.error(`::error title=E2E gate::${escapeAnnotation(GATE.headline)}`);
 }
 
 /**

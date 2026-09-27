@@ -626,3 +626,356 @@ test('--expect-ref worktree warns but still grades', () => {
   assert.match(r.stderr, /^⚠/m);
   assert.match(r.stdout, /Suite cost/, r.stdout + r.stderr);
 });
+
+// ─── mergewatch.ai#659 — "the review errored" vs "the review disagreed" ───────
+//
+// A Bedrock outage (2026-09-14/16/18) failed every review in the gate, and the
+// grader reported each as a regression: `expected a summary comment, found
+// none`. The check run said plainly that no verdict was produced. These drive
+// the real script through a shim that serves the shapes GitHub actually
+// returns — uppercase rollup, REST `{ total_count, check_runs }`, the literal
+// Lambda summary — captured from run 35300428753's PRs.
+
+const DEV = 'MergeWatch Review (dev)';
+const PROD = 'MergeWatch Review';
+const BEDROCK = 'MergeWatch encountered an error: Bedrock is unable to process your request.';
+const TOO_LONG = 'MergeWatch encountered an error: Input is too long for requested model.';
+const ABANDONED = 'Review abandoned — provider unavailable';
+const sha = (c) => c.repeat(40);
+
+let runId = 1000;
+/** A REST check run. */
+const checkRun = (name, conclusion, title, summary = '', status = 'completed') =>
+  ({ id: runId++, name, status, conclusion, output: { title, summary } });
+const reviewFailed = (name, summary = BEDROCK) => checkRun(name, 'failure', 'Review failed', summary);
+const verdict = (name, conclusion = 'success', title = '4/5 — Generally safe') => checkRun(name, conclusion, title);
+
+const devComment = (extra = '') =>
+  `<!-- mergewatch-review:dev -->\n> 🟢 **4/5 — ok**\n\n| **Tokens** | 10 in · 1 out · 11 total |\n| **Est. cost** | ~$0.0100 (LLM only) |\n${extra}`;
+const prodComment = () => '<!-- mergewatch-review -->\n> 🟢 **4/5 — ok**\n';
+
+/**
+ * One PR. `runs` maps commit sha -> REST check runs; the head's runs also feed
+ * the rollup, uppercased as GraphQL reports them.
+ */
+function prSpec({ head = sha('h'), commits = [head], runs = {}, comments = [] } = {}) {
+  const headRuns = runs[head] ?? [];
+  return {
+    headRefOid: head,
+    state: 'OPEN',
+    commits: commits.map((oid) => ({ oid })),
+    comments: comments.map((body) => ({ body, author: { login: body.includes(':dev') ? 'mergewatch-ai-dev' : 'mergewatch' } })),
+    reviews: [],
+    reactionGroups: [],
+    statusCheckRollup: headRuns.map((r) => ({
+      __typename: 'CheckRun', name: r.name, status: String(r.status).toUpperCase(),
+      conclusion: r.conclusion ? String(r.conclusion).toUpperCase() : null,
+    })),
+    runs,
+  };
+}
+
+/** gh shim serving `pr view`, commit check-runs, and empty inline comments. */
+function ghFull(prs) {
+  const binDir = mkdtempSync(join(tmpdir(), 'gh-full-'));
+  writeFileSync(join(binDir, 'gh'), `#!/usr/bin/env node
+const prs = ${JSON.stringify(prs)};
+const a = process.argv.slice(2);
+if (a[0] === 'pr' && a[1] === 'view') {
+  const p = prs[a[2]];
+  if (!p) { process.stderr.write('no such PR'); process.exit(1); }
+  const { runs, ...pr } = p;
+  process.stdout.write(JSON.stringify(pr));
+  process.exit(0);
+}
+const m = a[0] === 'api' && /commits\\/([0-9a-z]+)\\/check-runs/.exec(a[1] ?? '');
+if (m) {
+  const all = Object.values(prs).flatMap((p) => p.runs[m[1]] ?? []);
+  process.stdout.write(JSON.stringify({ total_count: all.length, check_runs: all }));
+  process.exit(0);
+}
+process.stdout.write('[]');
+`);
+  spawnSync('chmod', ['755', join(binDir, 'gh')]);
+  return binDir;
+}
+
+/** A repo whose origin/main carries `expects` (raw strings are written verbatim). */
+function repoWith(expects) {
+  const dir = mkdtempSync(join(tmpdir(), 'grade-659-'));
+  git(dir, 'init', '--quiet', '-b', 'main');
+  git(dir, 'config', 'user.email', 'e2e@test');
+  git(dir, 'config', 'user.name', 'e2e');
+  for (const [name, e] of Object.entries(expects)) {
+    write(dir, `fixtures/${name}/meta.env`, 'TAGS=correctness\n');
+    write(dir, `fixtures/${name}/expect.json`, typeof e === 'string' ? e : JSON.stringify(e));
+  }
+  git(dir, 'add', '-A');
+  git(dir, 'commit', '--quiet', '-m', 'expectations');
+  const head = git(dir, 'rev-parse', 'HEAD');
+  git(dir, 'update-ref', 'refs/remotes/origin/main', head);
+  return { dir, head };
+}
+
+/** Grade `entries` ([fixture, pr|null]) against `expects` and `prs`, at the dev stage by default. */
+function grade659(expects, prs, entries, ...args) {
+  const { dir, head } = repoWith(expects);
+  const bin = ghFull(prs);
+  const mf = manifest(dir, 'run.json',
+    entries.map(([fixture, pr]) => ({ fixture, pr, applied: 'ok' })), { snapshot: head });
+  const stageArgs = args.includes('--compare') || args.includes('--stage') ? [] : ['--stage', 'dev'];
+  return runWithGh(dir, bin, '--manifest', mf, ...stageArgs, ...args);
+}
+
+const bedrockBoth = (head = sha('h')) => ({ [head]: [reviewFailed(DEV), reviewFailed(PROD)] });
+const gateBlock = (stdout) => {
+  const lines = stdout.split('\n');
+  const at = lines.findIndex((l) => l.startsWith('GATE:'));
+  return at === -1 ? [] : lines.slice(at);
+};
+
+test('#659 — a Bedrock `Review failed` with no comment is ERROR, not a regression', () => {
+  const r = grade659({ a: { comment: 'present' } }, { 1: prSpec({ runs: bedrockBoth() }) }, [['a', 1]]);
+  assert.match(r.stdout, /! ERROR\s+a #1/);
+  assert.match(r.stdout, /Bedrock is unable to process your request\./);
+  assert.match(r.stdout, /^0 passed · 0 failed · 0 ungraded · 0 skipped · 1 errored$/m);
+  assert.equal(r.status, 1);
+});
+
+test('#659 — the same with a comment is still ERROR, naming the head commit', () => {
+  const r = grade659({ a: { comment: 'present' } },
+    { 1: prSpec({ runs: bedrockBoth(), comments: [devComment()] }) }, [['a', 1]]);
+  assert.match(r.stdout, /! ERROR\s+a #1/);
+  assert.match(r.stdout, /provider error on hhhhhhh \(head\): "Bedrock is unable to process your request\."/);
+});
+
+test('#659 — evaluate() failures follow the error, marked possibly stale', () => {
+  const r = grade659({ a: { comment: 'present', check: 'success' } },
+    { 1: prSpec({ runs: bedrockBoth(), comments: [devComment()] }) }, [['a', 1]]);
+  assert.match(r.stdout, /also \(may be stale\): check failure, expected success/);
+});
+
+test('#659 — an abandoned review is ERROR', () => {
+  const r = grade659({ a: { comment: 'present' } },
+    { 1: prSpec({ runs: { [sha('h')]: [checkRun(DEV, 'failure', ABANDONED, 'redrive cap'), reviewFailed(PROD)] } }) },
+    [['a', 1]]);
+  assert.match(r.stdout, /! ERROR\s+a #1/);
+});
+
+test('#659 — a shared PR whose earlier commit errored is ERROR, naming that commit', () => {
+  // 18a is graded on 18b's head (run-suite.sh). Its own review is the earlier commit's.
+  const first = sha('c');
+  const head = sha('h');
+  const r = grade659({ a: { comment: 'present' } }, {
+    1: prSpec({
+      head, commits: [first, head], comments: [devComment()],
+      runs: { [first]: [reviewFailed(DEV), reviewFailed(PROD)], [head]: [verdict(DEV), verdict(PROD)] },
+    }),
+  }, [['a', 1]]);
+  assert.match(r.stdout, /! ERROR\s+a #1/);
+  assert.match(r.stdout, /provider error on ccccccc \(earlier commit on shared PR\)/);
+});
+
+test('#659 — a crash is a FAIL with the message, with or without a comment', () => {
+  for (const comments of [[], [devComment()]]) {
+    const r = grade659({ a: { comment: 'present' } },
+      { 1: prSpec({ runs: { [sha('h')]: [reviewFailed(DEV, TOO_LONG), verdict(PROD)] }, comments }) }, [['a', 1]]);
+    assert.match(r.stdout, /✗ FAIL\s+a #1/);
+    assert.match(r.stdout, /review crashed on hhhhhhh: "Input is too long for requested model\."/);
+  }
+});
+
+test('#659 (pin) — a critical verdict is a verdict, not a crash', () => {
+  const r = grade659({ a: { comment: 'present', check: 'failure' } }, {
+    1: prSpec({ runs: { [sha('h')]: [verdict(DEV, 'failure', '5/5 — 3 critical issues found'), verdict(PROD)] }, comments: [devComment()] }),
+  }, [['a', 1]]);
+  assert.match(r.stdout, /✓ PASS\s+a #1/);
+  assert.doesNotMatch(r.stdout, /review crashed/);
+});
+
+const devOnly = () => prSpec({ runs: { [sha('h')]: [reviewFailed(DEV), verdict(PROD)] } });
+
+test('#659 — a dev-only provider error says prod did not corroborate it', () => {
+  const r = grade659({ a: { comment: 'present' } }, { 1: devOnly() }, [['a', 1]]);
+  assert.match(r.stdout, /prod corroborated: no/);
+});
+
+test('#659 — a dev-only provider error says investigate, never "re-run"', () => {
+  const r = grade659({ a: { comment: 'present' } }, { 1: devOnly() }, [['a', 1]]);
+  assert.match(r.stdout, /Investigate the ERROR notes before re-running/);
+  assert.doesNotMatch(r.stdout, /Re-run the gate once/);
+  assert.match(r.stdout, /dev-only provider error: prod reviewed the same commit/);
+});
+
+test('#659 — a harness ERROR alongside a corroborated provider error says investigate', () => {
+  const r = grade659({ a: '{ not json', b: { comment: 'present' } },
+    { 2: prSpec({ runs: bedrockBoth() }) }, [['a', 1], ['b', 2]]);
+  assert.match(r.stdout, /Investigate the ERROR notes before re-running/);
+  assert.doesNotMatch(r.stdout, /Re-run the gate once/);
+});
+
+test('#659 — only corroborated provider errors say "re-run once"', () => {
+  const r = grade659({ a: { comment: 'present' } }, { 1: prSpec({ runs: bedrockBoth() }) }, [['a', 1]]);
+  assert.match(r.stdout, /^GATE: RED — 1 fixture\(s\) UNVERIFIED \(provider error, no verdict\); 0 regressions among the 0 that produced a verdict\. Re-run the gate once; do not bypass\.$/m);
+});
+
+test('#659 — a FAIL headline also counts provider and harness errors', () => {
+  const r = grade659({ f: { comment: 'present' }, x: '{ not json', b: { comment: 'present' } }, {
+    1: prSpec({ runs: { [sha('h')]: [verdict(DEV), verdict(PROD)] } }),
+    3: prSpec({ head: sha('g'), runs: bedrockBoth(sha('g')) }),
+  }, [['f', 1], ['x', 2], ['b', 3]]);
+  assert.match(r.stdout, /^GATE: RED — 1 regression \(FAIL\), 1 UNVERIFIED \(provider error\), 1 ERROR \(harness\)$/m);
+});
+
+test('#659 — run 35300428753: each errored fixture, its PR and the message share a line in the tail', () => {
+  // The 48 fixtures that run graded, in its order. 18b reuses 18a's PR, so it has none.
+  const run = [
+    ['01-clean-pr', 3550], ['02-info-only', 3551], ['03-critical-finding', 3552], ['04-auto-review-off', 3553],
+    ['06-docs-only', 3554], ['07-include-patterns', 3555], ['09-draft-pr', 3556], ['10-skip-review-label', 3557],
+    ['14-third-party-thread', 3558], ['15-mermaid-stress', 3559], ['16-agent-authored', 3560],
+    ['17-grounding-hallucinated-anchor', 3561], ['18a-introduce-criticals', 3562], ['18b-fix-criticals', null],
+    ['19-confidence-default-off', 3563], ['21-noop-suggestion', 3564], ['22-claim-aware-verify', 3565],
+    ['23-convergence', 3566], ['24-triage-author-filter', 3567], ['25-w7-guardrail', 3568], ['26-call-site-snap', 3569],
+    ['27-no-harness', 3570], ['28a-single-comment-approve', 3571], ['28b-single-comment-critical', 3572],
+    ['29-cluster', 3573], ['30-confidence-floor', 3574], ['31-prev-disputed-prefilter', 3575],
+    ['32-cross-agent-dedup', 3576], ['33-diagram-hallucinated-path', 3577], ['34-warning-verification', 3578],
+    ['38-quiet-drop', 3579], ['49-re-review-no-anchoring', 3580], ['50-suggestion-redundant', 3581],
+    ['51-no-self-contradiction', 3582], ['52-unverified-critical-render', 3583], ['75a-maxfiles-over', 3584],
+    ['75b-maxfiles-boundary', 3585], ['76a-review-on-mention-off', 3586], ['76b-both-triggers-off', 3587],
+    ['77a-exclude-generated', 3588], ['77b-exclude-all-changed', 3589], ['78a-output-shaping', 3590],
+    ['78b-post-summary-on-clean', 3591], ['79-ux-block', 3592], ['80a-conventions-order', 3593],
+    ['80b-conventions-cap', 3594], ['81-file-request-budget', 3595], ['98-oversized-diff-skip', 3596],
+  ];
+  assert.equal(run.length, 48);
+  const errored = new Set(['14-third-party-thread', '15-mermaid-stress', '18a-introduce-criticals',
+    '19-confidence-default-off', '23-convergence', '25-w7-guardrail']);
+  const expects = Object.fromEntries(run.map(([f]) => [f, { comment: 'present' }]));
+  const prs = {};
+  for (const [f, n] of run) {
+    if (n == null) continue;
+    const h = n.toString(16).padStart(40, '0');
+    prs[n] = errored.has(f)
+      ? prSpec({ head: h, runs: bedrockBoth(h) })
+      : prSpec({ head: h, runs: { [h]: [verdict(DEV), verdict(PROD)] }, comments: [devComment()] });
+  }
+  const r = grade659(expects, prs, run);
+  assert.match(r.stdout, /^41 passed · 0 failed · 0 ungraded · 1 skipped · 6 errored$/m);
+  const tail = r.stdout.trimEnd().split('\n').slice(-40);
+  for (const [f, n] of run.filter(([f]) => errored.has(f))) {
+    assert.ok(tail.some((l) => l.includes(f) && l.includes(`#${n}`) && l.includes('Bedrock is unable to process your request')),
+      `${f} #${n} and the message share no line in the last 40:\n${tail.join('\n')}`);
+  }
+});
+
+test('#659 — an all-errored run is not called a PARSER failure', () => {
+  const r = grade659({ a: { comment: 'present' }, b: { comment: 'present' } },
+    { 1: prSpec({ runs: bedrockBoth() }), 2: prSpec({ runs: bedrockBoth(sha('g')), head: sha('g') }) },
+    [['a', 1], ['b', 2]]);
+  assert.doesNotMatch(r.stdout, /PARSER failure/);
+  assert.match(r.stdout, /2 fixture\(s\) have no verdict \(provider error \/ crashed\) — cost not measured: a, b/);
+});
+
+test('#659 — a crash with a cost block is listed as unmeasured, not totalled', () => {
+  const r = grade659({ a: { comment: 'present' } },
+    { 1: prSpec({ runs: { [sha('h')]: [reviewFailed(DEV, TOO_LONG), verdict(PROD)] }, comments: [devComment()] }) },
+    [['a', 1]]);
+  assert.match(r.stdout, /cost not measured: a/);
+  assert.match(r.stdout, /Suite cost: ~\$0\.00 across 0 reviewed fixture\(s\)/);
+});
+
+test('#659 — --compare: a dev-only provider error is ERROR with a dev: note', () => {
+  const r = grade659({ a: { comment: 'present' } },
+    { 1: prSpec({ runs: { [sha('h')]: [reviewFailed(DEV), verdict(PROD)] }, comments: [prodComment()] }) },
+    [['a', 1]], '--compare');
+  assert.match(r.stdout, /! ERROR\s+a #1/);
+  assert.match(r.stdout, /dev: provider error on hhhhhhh \(head\)/);
+  assert.doesNotMatch(r.stdout, /no dev review comment found/);
+});
+
+test('#659 — a red run emits exactly one ::error annotation', () => {
+  const r = grade659({ a: { comment: 'present' }, b: { comment: 'present' } },
+    { 1: prSpec({ runs: bedrockBoth() }), 2: prSpec({ runs: { [sha('g')]: [verdict(DEV), verdict(PROD)] }, head: sha('g') }) },
+    [['a', 1], ['b', 2]]);
+  assert.equal(r.stderr.split('\n').filter((l) => l.startsWith('::error title=E2E gate::')).length, 1, r.stderr);
+});
+
+const green = () => grade659({ a: { comment: 'present' } },
+  { 1: prSpec({ runs: { [sha('h')]: [verdict(DEV), verdict(PROD)] }, comments: [devComment()] }) }, [['a', 1]]);
+
+test('#659 (pin) — a green run emits no ::error annotation', () => {
+  const r = green();
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.doesNotMatch(r.stderr, /::error/);
+});
+
+test('#659 — a green run ends with GATE: GREEN', () => {
+  assert.match(green().stdout, /^GATE: GREEN$/m);
+});
+
+const redJson = () => grade659({ a: { comment: 'present' } }, { 1: prSpec({ runs: bedrockBoth() }) }, [['a', 1]], '--json');
+
+test('#659 (pin) — a red --json run is still one parseable document', () => {
+  assert.doesNotThrow(() => JSON.parse(redJson().stdout));
+});
+
+test('#659 — --json carries the gate and each result\'s noVerdict', () => {
+  const r = redJson();
+  const doc = JSON.parse(r.stdout);
+  assert.equal(doc.gate.state, 'red');
+  assert.equal(doc.results[0].noVerdict.kind, 'provider-transient');
+  assert.equal(doc.results[0].noVerdict.commit, 'head');
+  assert.match(r.stderr, /::error title=E2E gate::/);
+});
+
+test('#659 (pin) — the tally format is unchanged and is the only `passed ·` line', () => {
+  const r = grade659({ a: { comment: 'present' } }, { 1: prSpec({ runs: bedrockBoth() }) }, [['a', 1]]);
+  assert.match(r.stdout, /^\d+ passed · \d+ failed · \d+ ungraded · \d+ skipped · \d+ errored$/m);
+  assert.equal(r.stdout.split('\n').filter((l) => l.includes('passed ·')).length, 1);
+});
+
+test('#659 — no GATE line says NOT VERIFIED', () => {
+  // release-gate.yml greps `passed ·|NOT VERIFIED` into the release notes.
+  const r = grade659({ a: { comment: 'present' } }, { 1: devOnly() }, [['a', 1]]);
+  const block = gateBlock(r.stdout);
+  assert.match(block[0] ?? '', /^GATE: /, 'no GATE block — the check below would pass vacuously');
+  for (const l of block) assert.doesNotMatch(l, /NOT VERIFIED/);
+});
+
+test('#659 — nothing prints after the GATE block', () => {
+  const r = grade659({ a: { comment: 'present' } }, { 1: devOnly() }, [['a', 1]]);
+  const block = gateBlock(r.stdout).filter((l) => l !== '');
+  assert.match(block[0], /^GATE: /);
+  for (const l of block.slice(1)) assert.match(l, /^(  \d+ × |dev-only |prod-only )/, l);
+});
+
+test('#659 (pin) — a mismatched verdict is still FAIL, exit 1', () => {
+  const r = grade659({ a: { comment: 'absent' } },
+    { 1: prSpec({ runs: { [sha('h')]: [verdict(DEV), verdict(PROD)] }, comments: [devComment()] }) }, [['a', 1]]);
+  assert.match(r.stdout, /✗ FAIL\s+a #1/);
+  assert.equal(r.status, 1);
+});
+
+test('#659 (pin) — a harness-only ERROR still exits 1', () => {
+  const r = grade659({ a: '{ not json', z: { comment: 'present' } }, {}, [['a', 1]]);
+  assert.match(r.stdout, /! ERROR\s+a #1/);
+  assert.equal(r.status, 1);
+});
+
+test('#659 — an unreadable check-run list is named on stderr, not swallowed', () => {
+  const { dir, head } = repoWith({ a: { comment: 'present' } });
+  const binDir = mkdtempSync(join(tmpdir(), 'gh-broken-'));
+  writeFileSync(join(binDir, 'gh'), `#!/usr/bin/env node
+const a = process.argv.slice(2);
+if (a[0] === 'pr' && a[1] === 'view') {
+  process.stdout.write(JSON.stringify({ headRefOid: '${'h'.repeat(40)}', state: 'OPEN', commits: [{ oid: '${'h'.repeat(40)}' }],
+    comments: [], reviews: [], reactionGroups: [], statusCheckRollup: [] }));
+  process.exit(0);
+}
+if (a[0] === 'api' && /check-runs/.test(a[1] ?? '')) { process.stderr.write('HTTP 502'); process.exit(1); }
+process.stdout.write('[]');
+`);
+  spawnSync('chmod', ['755', join(binDir, 'gh')]);
+  const mf = manifest(dir, 'run.json', [{ fixture: 'a', pr: 1, applied: 'ok' }], { snapshot: head });
+  const r = runWithGh(dir, binDir, '--manifest', mf, '--stage', 'dev');
+  assert.match(r.stderr, /note: could not read check runs for hhhhhhh/);
+});
