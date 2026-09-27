@@ -1,5 +1,7 @@
 {
   "_source": "README Expected outcomes — E2E-77b (excluding every changed file yields a clean review, not an error and not a skip)",
+  "_determinism": "model",
+  "_variance": "With every changed file excluded the review should be clean, but the asserted 5/5, zero warnings and success are still model output on what remains.",
   "comment": "present",
   "score": 5,
   "findings": { "critical": 0, "warning": 0 },

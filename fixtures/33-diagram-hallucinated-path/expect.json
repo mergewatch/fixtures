@@ -1,5 +1,7 @@
 {
   "_source": "README Expected outcomes — E2E-33, NARROWED. FP-D has two correct outcomes and they are opposites: a diagram citing only src/a.ts renders, and a diagram citing an invented path is dropped entirely. Which one occurs depends on whether the model hallucinates on this run, so neither the presence nor the absence of a Mermaid block can be asserted without flaking. What is mechanical is that the drop is SILENT — a dropped diagram must never leave a parse error or a stray empty fence behind.",
+  "_determinism": "model",
+  "_variance": "A mermaid parse error or error text appears only if the diagram agent emits invalid output or the review crashes, both outcomes of model output.",
   "comment": "present",
   "mustNotContain": [
     "mermaid parse error",

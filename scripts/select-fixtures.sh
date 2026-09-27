@@ -11,6 +11,10 @@
 #   git -C ../mergewatch.ai diff --name-only main... \
 #     | scripts/select-fixtures.sh --changed-files -
 #
+# `correctness` means a product contract gated at release, not that the outcome
+# is deterministic. Each expect.json's `_determinism` says which kind it is
+# (skip, mechanical, model; mergewatch.ai#660).
+#
 # --automated / --manual filter on MANUAL_ONLY and AND with the other filters,
 # so `--tag correctness --automated` is the runnable half of the gate. They are
 # derived from MANUAL_ONLY rather than being tags of their own: a fixture's

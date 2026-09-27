@@ -1,5 +1,7 @@
 {
   "_source": "README Expected outcomes — E2E-77a. excludePatterns removes a file from the diff sent to agents WITHOUT changing the skip decision, so the PR is still reviewed and the hand-written defect still lands.",
+  "_determinism": "model",
+  "_variance": "The generated-file exclusion is mechanical, but the asserted critical, failure and CHANGES_REQUESTED need the model to find the planted critical elsewhere.",
   "comment": "present",
   "findings": { "critical": { "min": 1 } },
   "check": "failure",

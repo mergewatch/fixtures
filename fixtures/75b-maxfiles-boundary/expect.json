@@ -1,5 +1,6 @@
 {
-  "_source": "README Expected outcomes — E2E-75b (boundary is inclusive: exactly maxFiles still reviews). A summary comment is the proof it was not skipped — a skip posts none. Score is left wide because the README only says a parseInt/NaN concern may surface, not that it must.",
+  "_source": "README Expected outcomes — E2E-75b (boundary is inclusive: exactly maxFiles still reviews). A summary comment is the proof it was not skipped — a skip posts none. Score is left wide because the README only says a parseInt/NaN concern may surface, not that it must. Labelled `mechanical` (mergewatch.ai#660): any completed review posts the summary comment (postSummaryOnClean defaults to true; `stayingSilent`, review-agent.ts:1051) and renders a score badge (`formatReviewComment`, comment-formatter.ts:760), so a full-range score and a present comment hold for every model output. The maxFiles decision is made before any LLM call (`shouldSkipByRules`), so the absence of `Review skipped` is fixed by the file count, not the model.",
+  "_determinism": "mechanical",
   "comment": "present",
   "score": { "min": 1, "max": 5 },
   "mustNotContain": ["Review skipped"]

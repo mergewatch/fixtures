@@ -6,13 +6,17 @@ The load-bearing detail: it suppresses only the **comment**. Both other surfaces
 
 That second one is worth knowing before you enable this: `postSummaryOnClean: false` makes MergeWatch quiet in the comment thread, **not** invisible. The PR timeline still shows "approved these changes", and where branch protection counts App reviews that approval can satisfy a required-review rule. The setting governs the summary comment, which is what it is named for — nothing else.
 
+## Why it can still fail (`_determinism: model`)
+
+Silence is decided by `stayingSilent` (#350): no findings, `postSummaryOnClean: false`, and no prior comment. That is a statement about **model output**, not config. `minSeverity: critical` (mergewatch.ai#660) drops warnings and info before grounding, so a stray test-coverage warning (the #3764 failure) no longer breaks it. But org agents still run: the seeded `no-todo` org agent bypasses `minSeverity`, and so does any built-in critical, including a refuted one (the verifier demotes it to unverified; it is not dropped). Either posts the summary and flips the review off APPROVED. Cassettes (#491/#492) are what would remove this variance.
+
 ## Apply
 
 ```bash
 ./scripts/apply-fixture.sh 78b-post-summary-on-clean
 ```
 
-The overlay sets `postSummaryOnClean: false` and adds `src/clean-change.ts` — a genuinely clean change (validated input, explicit error handling, no injection surface), modelled on the **E2E-01** clean-PR shape. If it draws findings, the fixture isn't exercising this setting at all; fix the file before reading anything into the result.
+The overlay sets `postSummaryOnClean: false` and `minSeverity: critical`, and adds `src/clean-change.ts` — a genuinely clean change (validated input, explicit error handling, no injection surface), modelled on the **E2E-01** clean-PR shape. If it draws findings, the fixture isn't exercising this setting at all; fix the file before reading anything into the result.
 
 Then flip `postSummaryOnClean: true` on the branch and push to confirm the all-clear summary returns.
 

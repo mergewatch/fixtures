@@ -979,3 +979,50 @@ process.stdout.write('[]');
   const r = runWithGh(dir, binDir, '--manifest', mf, '--stage', 'dev');
   assert.match(r.stderr, /note: could not read check runs for hhhhhhh/);
 });
+
+// ─── mergewatch.ai#660 — model-dependent failures say so ────────────────────
+
+const MODEL = (variance) => ({ comment: 'present', _determinism: 'model', _variance: variance });
+const twoModelFails = () => grade659(
+  { m: MODEL('the model may or may not raise a finding here'), c: MODEL('a crash is not model variance at all') },
+  {
+    1: prSpec({ runs: { [sha('h')]: [verdict(DEV), verdict(PROD)] } }),
+    2: prSpec({ head: sha('g'), runs: { [sha('g')]: [reviewFailed(DEV, TOO_LONG), verdict(PROD)] } }),
+  },
+  [['m', 1], ['c', 2]],
+);
+
+test('#660 — the count line excludes a crash: 1 of the 2 failures are model-dependent', () => {
+  const r = twoModelFails();
+  assert.match(r.stdout, /^1 of the 2 failures are model-dependent/m);
+  const lines = r.stdout.split('\n');
+  const tallyAt = lines.findIndex((l) => l.includes('passed ·'));
+  assert.match(lines[tallyAt + 1], /^1 of the 2 failures are model-dependent/, 'not directly after the tally');
+  assert.doesNotMatch(lines[tallyAt + 1], /passed ·|NOT VERIFIED/);
+});
+
+test('#660 — only the non-crash FAIL carries a model-dependent line, right after its notes', () => {
+  const r = twoModelFails();
+  const lines = r.stdout.split('\n');
+  const annotation = (l) => /^\s+model-dependent: /.test(l);
+  assert.equal(lines.filter(annotation).length, 1, r.stdout);
+  const at = lines.findIndex(annotation);
+  const owner = lines.slice(0, at).reverse().find((l) => /^[✓✗!⊘·] /.test(l));
+  assert.match(owner, /✗ FAIL\s+m #1/);
+  assert.match(lines[at], /model-dependent: the model may or may not raise a finding here/);
+});
+
+test('#660 (pin) — a mechanical FAIL is not annotated', () => {
+  const r = grade659({ a: { comment: 'present', _determinism: 'mechanical' } },
+    { 1: prSpec({ runs: { [sha('h')]: [verdict(DEV), verdict(PROD)] } }) }, [['a', 1]]);
+  assert.match(r.stdout, /✗ FAIL\s+a #1/);
+  assert.doesNotMatch(r.stdout, /model-dependent/);
+});
+
+test('#660 (pin) — --json output carries no labels', () => {
+  const r = grade659({ m: MODEL('the model may or may not raise a finding here') },
+    { 1: prSpec({ runs: { [sha('h')]: [verdict(DEV), verdict(PROD)] } }) }, [['m', 1]], '--json');
+  const doc = JSON.parse(r.stdout);
+  assert.equal(doc.results[0].determinism, undefined);
+  assert.equal(doc.results[0].variance, undefined);
+});

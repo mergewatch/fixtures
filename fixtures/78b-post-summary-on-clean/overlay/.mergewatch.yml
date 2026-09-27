@@ -7,3 +7,7 @@ model: us.anthropic.claude-sonnet-4-5-20250929-v1:0
 # reports the passing conclusion and merge score, so nothing is lost. This
 # keeps high-volume PR queues from filling up with empty summaries.
 postSummaryOnClean: false
+# Drop warnings and info before grounding (mergewatch.ai#660). This fixture tests
+# the silence, and a single built-in test-coverage warning broke it (fixtures
+# #3764). Criticals and the seeded no-todo org agent still post the summary.
+minSeverity: critical
