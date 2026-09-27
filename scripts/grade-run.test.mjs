@@ -960,3 +960,22 @@ test('#659 (pin) — a harness-only ERROR still exits 1', () => {
   assert.match(r.stdout, /! ERROR\s+a #1/);
   assert.equal(r.status, 1);
 });
+
+test('#659 — an unreadable check-run list is named on stderr, not swallowed', () => {
+  const { dir, head } = repoWith({ a: { comment: 'present' } });
+  const binDir = mkdtempSync(join(tmpdir(), 'gh-broken-'));
+  writeFileSync(join(binDir, 'gh'), `#!/usr/bin/env node
+const a = process.argv.slice(2);
+if (a[0] === 'pr' && a[1] === 'view') {
+  process.stdout.write(JSON.stringify({ headRefOid: '${'h'.repeat(40)}', state: 'OPEN', commits: [{ oid: '${'h'.repeat(40)}' }],
+    comments: [], reviews: [], reactionGroups: [], statusCheckRollup: [] }));
+  process.exit(0);
+}
+if (a[0] === 'api' && /check-runs/.test(a[1] ?? '')) { process.stderr.write('HTTP 502'); process.exit(1); }
+process.stdout.write('[]');
+`);
+  spawnSync('chmod', ['755', join(binDir, 'gh')]);
+  const mf = manifest(dir, 'run.json', [{ fixture: 'a', pr: 1, applied: 'ok' }], { snapshot: head });
+  const r = runWithGh(dir, binDir, '--manifest', mf, '--stage', 'dev');
+  assert.match(r.stderr, /note: could not read check runs for hhhhhhh/);
+});

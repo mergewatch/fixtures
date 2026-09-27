@@ -123,7 +123,10 @@ function fetchCheckOutputs(repo, sha) {
   try {
     runs = JSON.parse(gh(['api', `repos/${repo}/commits/${sha}/check-runs`, '--paginate']))
       .check_runs ?? [];
-  } catch {
+  } catch (err) {
+    // Still graded, but visibly: without the check runs, a review that never
+    // produced a verdict cannot be told from one that disagreed (#659).
+    console.error(`note: could not read check runs for ${sha.slice(0, 7)}: ${String(err.message).split('\n')[0]}`);
     runs = [];
   }
   checkRunCache.set(key, runs);
