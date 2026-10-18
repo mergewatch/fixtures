@@ -1,22 +1,10 @@
-# E2E suite runs on Sonnet 4.5 — its Bedrock daily token pool is ~4x Opus 4.6's
-# (10.8M/day cross-region vs 2.59M), so suite runs stop competing with
-# production reviews for the Opus budget. Prod's model is untouched (it is
-# pinned by the retained CloudFormation parameter, not by any repo).
+# Keep the suite on Sonnet 4.5 (fixtures#585). This overlay REPLACES the
+# repo-root .mergewatch.yml, so without repeating the pin here the fixture
+# falls back to the deploy default (Opus 4.6) whose daily token quota the
+# suite exhausts — those fixtures then dead-letter while the rest pass.
 model: us.anthropic.claude-sonnet-4-5-20250929-v1:0
-
-# Fixture bait is DELIBERATELY defective — that is its entire purpose. Reviewing
-# it produces findings that are technically correct and completely unactionable:
-# fixtures#2432 added a missing `await` on purpose, so a reviewer would catch it,
-# and the review of that PR duly reported it as a critical.
-#
-# Every PR that adds or edits bait hits this, so it is noise by construction
-# rather than a one-off to justify away.
-#
-# Scoped to `overlay/` only: expect.json, meta.env and the READMEs are ordinary
-# files and stay reviewable — they are where a real mistake in a fixture lives.
-#
-# This does NOT affect the suite's own PRs. apply-fixture copies overlay/ onto
-# the repo ROOT, so applied bait lands at `src/*.ts` and is reviewed normally —
-# which is the point of the fixture.
-excludePatterns:
-  - "fixtures/*/overlay/**"
+# Only surface warnings and above, and cap how many findings land on a PR so
+# the summary stays readable. When more are found than the cap allows, the
+# most severe are kept and the reader is told some were withheld.
+minSeverity: warning
+maxFindings: 3
