@@ -26,9 +26,10 @@ Then flip `postSummaryOnClean: true` on the branch and push to confirm the all-c
 - [ ] With `postSummaryOnClean: false`, **no** summary comment is posted.
 - [ ] The check run **still reports**, with a passing conclusion and the merge score.
 - [ ] No inline comments are posted (trivially — a clean PR has no findings to anchor).
-- [ ] A formal Review event **is** still submitted, and on a clean PR it is an `APPROVE`. This bullet used to
-      say the opposite; the README was wrong and the product was right. `postSummaryOnClean` gates the
-      comment only (`review-processor.ts:835`), and `submitPRReview` runs regardless.
+- [ ] **No** formal Review event (mergewatch.ai#706). With `approve` off the clean verdict is a COMMENT, and a
+      COMMENT with no summary comment to point at is not submitted (`shouldSubmitFormalReview`). With
+      `approve: true` on the default branch an APPROVE is still submitted. Stale reviews of ours are still
+      dismissed (mergewatch.ai#707).
 - [ ] Flipping to `postSummaryOnClean: true` and pushing restores the "all clear" summary comment.
 - [ ] The setting has no effect on a PR that *does* have findings — those still comment regardless.
 
@@ -38,3 +39,5 @@ Then flip `postSummaryOnClean: true` on the branch and push to confirm the all-c
 - ❌ The comment is posted anyway (the flag is ignored).
 - ❌ The flag leaks into non-clean PRs and suppresses real findings.
 - ❌ Flipping back to `true` doesn't restore the summary until a fresh PR is opened.
+
+> **mergewatch.ai#706** changed the paragraph above: with defaults there is no formal review and no timeline approval. The approval described there happens only when the default branch sets `approve: true`.

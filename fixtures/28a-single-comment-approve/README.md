@@ -33,3 +33,5 @@ Pair with `28b-single-comment-critical` for the REQUEST_CHANGES branch.
 - ❌ Two issue comments authored by `mergewatch[bot]` (upsert regressed — `findExistingBotComment` failed to find the marker)
 - ❌ APPROVE Review has a body field present (legacy: omit entirely for APPROVE)
 - ❌ Multiple formal Review objects on the same commit (`dismissStaleReviews` failed)
+
+> **mergewatch.ai#706:** approving is opt-in. With defaults this fixture's clean verdict is a **COMMENT** review, whose body is a one-line pointer to the summary comment, so `expect.json` asserts `COMMENTED` and no longer asserts an empty body. The APPROVE-path checks above apply only when the default branch sets `approve: true`.

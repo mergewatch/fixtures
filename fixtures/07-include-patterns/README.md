@@ -10,5 +10,5 @@
 
 ## Expected outcomes
 
-- [ ] Full review runs (👀 → in-progress check run → summary comment → APPROVE)
+- [ ] Full review runs (👀 → in-progress check run → summary comment → COMMENT review; APPROVE only with `approve: true`, mergewatch.ai#706)
 - [ ] Summary comment treats the markdown file as a normal source file (no "skipped — only docs" message)
