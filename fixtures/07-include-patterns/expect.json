@@ -1,10 +1,10 @@
 {
-  "_source": "README Expected outcomes — E2E-07 (includePatterns opts docs/** back into review)",
+  "_source": "README Expected outcomes — E2E-07 (includePatterns opts docs/** back into review) mergewatch.ai#706: approving is opt-in (`approve: true` on the default branch), so with defaults a 4-5 score submits a COMMENT review, not APPROVE.",
   "_determinism": "model",
-  "_variance": "The include-pattern decision is mechanical, but the asserted APPROVE needs a score of at least 4, which a model-raised warning or critical can lower.",
+  "_variance": "The include-pattern decision is mechanical, but the asserted score of at least 4 is model judgement: a model-raised warning or critical can lower.",
   "comment": "present",
   "score": { "min": 4 },
   "check": "success",
-  "reviewState": "APPROVED",
+  "reviewState": "COMMENTED",
   "mustNotContain": ["Review skipped"]
 }

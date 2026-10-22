@@ -1,10 +1,9 @@
 {
-  "_source": "README Expected outcomes — E2E-28a (#132: one comment, one review, empty body)",
+  "_source": "README Expected outcomes — E2E-28a (#132: one comment, one review, empty body) mergewatch.ai#706: approving is opt-in (`approve: true` on the default branch), so with defaults a 4-5 score submits a COMMENT review, not APPROVE.",
   "_determinism": "model",
-  "_variance": "Single-comment mode is mechanical, but the 5/5, APPROVE and success need the model to find nothing actionable.",
+  "_variance": "Single-comment mode is mechanical, but the 5/5 and success need the model to find nothing actionable.",
   "comment": "present",
   "check": "success",
-  "reviewState": "APPROVED",
-  "reviewBody": "empty",
+  "reviewState": "COMMENTED",
   "score": 5
 }

@@ -16,7 +16,7 @@ A PR that produces ONLY info-severity findings should reconcile to 5/5 (not the 
 - [ ] Verdict reason line: "No action items — only informational notes" (NOT "Multiple warnings")
 - [ ] Action-items section: `👍 Looks good to me!`
 - [ ] An "Info (N)" collapsible section IS present with ≥1 finding
-- [ ] Formal PR review state = **Approved**
+- [ ] Formal PR review state = **Commented** (default `approve: false`, mergewatch.ai#706)
 
 ## Failure modes
 
